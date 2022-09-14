@@ -28,7 +28,7 @@ python3 setup.py install
 
 Go to the `otto/learn` directory and train the NN using
 ``` bash
-python3 learn.py -i myparam
+python3 learn.py -i medium-3dense1024-shaping0-discount100
 ```
 
 
