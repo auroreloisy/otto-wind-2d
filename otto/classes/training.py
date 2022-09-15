@@ -50,9 +50,9 @@ class TrainingEnv(SourceTracking):
             *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def choose_action_from_statep(self, model, statep=None, shaped_reward=None, sym_avg=False):
+    def choose_action_from_statep(self, model, statep=None, reward=None, sym_avg=False):
         # statep: (Nactions, Nhits)
-        # shaped_reward: float
+        # reward: (Nactions)
         """Choose an action according to the current value model and successor states statep.
         Has the same effect as choose_action from the RLPolicy class, but is faster if statep is provided.
 
@@ -62,6 +62,9 @@ class TrainingEnv(SourceTracking):
             statep (ndarray or None, optional):
                 array of all possible next states reachable from current state, as computed using :func:`transitions`;
                 if None then will be computed within this function (default=None)
+            reward (ndarray or None, optional)
+                array of shaped rewards for all possible actions
+                if None then will be computed within this function (default=None)
             sym_avg (bool, optional):
                 whether to average the value over symmetric-equivalent states (default=False)
 
@@ -70,15 +73,24 @@ class TrainingEnv(SourceTracking):
         """
         if statep is None:
             _, statep = self.transitions()
-        if shaped_reward is None:
-            if model.shaping is None:
-                shaped_reward = 1.0
-            else:
-                shaped_reward = 1.0 - self.shaping(which=model.shaping, p_source=self.p_source, agent=self.agent)
+        if reward is None:
+            # reward (1.0 for all actions, unless shaped)
+            reward = np.ones(self.Nactions)
+            if model.shaping is not None:
+                # action-dependent term
+                for action in range(self.Nactions):
+                    rew = 0.0
+                    for hit in range(self.Nhits):
+                        sp = statep[action, hit]
+                        rew += sp.prob * self.shaping(which=model.shaping, p_source=sp.p_source, agent=sp.agent)
+                    reward[action] += model.discount * rew
+                # action-independent term
+                reward -= self.shaping(which=model.shaping, p_source=self.p_source, agent=self.agent)
+
         action_chosen, _ = self._value_policy_from_statep(
             model=model,
             statep=statep,
-            shaped_reward=shaped_reward,
+            reward=reward,
             sym_avg=sym_avg
         )
 
@@ -111,7 +123,7 @@ class TrainingEnv(SourceTracking):
                 if prob > EPSILON:
                     state_ = State(p_source_[h] / prob, agent_, prob=prob)
                 else:  # pathological, just give the current state
-                    state_ = State(self.p_source, self.agent, prob=prob)
+                    state_ = State(self.p_source, self.agent, prob=0.0)
                 statep[action].append(state_)
 
         state = State(self.p_source, self.agent, prob=1.0)
@@ -195,7 +207,7 @@ class TrainingEnv(SourceTracking):
         value = model(input)
         return value.numpy()
 
-    def get_target(self, modelvalue, modelaction, statep, shaped_reward):
+    def get_target(self, modelvalue, modelaction, statep, reward):
         """
         Compute the target value (for training) of a state s.
 
@@ -207,15 +219,15 @@ class TrainingEnv(SourceTracking):
             statep (ndarray):
                 array of States objects with shape (Nactions, Nhits) or (batch_size, Nactions, Nhits),
                 containing all states s' reached from state s for all possible actions and hit values
-            shaped_reward (ndarray):
-                array of shaped rewards with shape (1,) or (batch_size, )
+            reward (ndarray):
+                array of shaped rewards with shape (Nactions,) or (batch_size, Nactions)
 
         Returns:
             target (ndarray): array of target values with shape (batch_size, 1)
 
         """
         # statep: numpy array of States: (Nactions, Nhits) or (batch_size, Nactions, Nhits)
-        # reward: numpy array of rewards: (1,) or (batch_size, )
+        # reward: numpy array of rewards: (Nactions,) or (batch_size, Nactions)
         # target: (batch_size, 1)
 
         if statep.ndim == 2:  # must add batch dimension
@@ -223,8 +235,7 @@ class TrainingEnv(SourceTracking):
 
         batch_size = statep.shape[0]
 
-        shaped_reward = np.array(shaped_reward)
-        shaped_reward = shaped_reward.reshape(batch_size, 1)
+        reward = reward.reshape(batch_size, self.Nactions)
 
         ishape = self.NN_input_shape
 
@@ -268,6 +279,13 @@ class TrainingEnv(SourceTracking):
             expected_value_for_action = modelaction.discount * tf.math.reduce_sum(probp * values_next_for_action, axis=-1)
             assert expected_value_for_action.shape == tuple([batch_size] + [self.Nactions])
 
+        # add the reward
+        expected_value += reward
+        assert expected_value.shape == tuple([batch_size] + [self.Nactions])
+        if modelaction is not None:
+            expected_value_for_action += reward
+            assert expected_value_for_action.shape == tuple([batch_size] + [self.Nactions])
+
         # reduce over best action
         if modelaction is not None:
             # get action indices
@@ -283,13 +301,7 @@ class TrainingEnv(SourceTracking):
 
         assert target.shape == tuple([batch_size] + [1])
 
-        target = target.numpy()
-
-        # add the shaped reward (typically just 1.0, unless shaped)
-        target = target + shaped_reward
-        assert target.shape == tuple([batch_size] + [1])
-
-        return target
+        return target.numpy()
 
     def apply_sym_transformation(self, sym):
         """
@@ -308,9 +320,9 @@ class TrainingEnv(SourceTracking):
             self.source = self._sym_transformation_coords(self.source, sym=sym)
 
     # __ INTERNAL FUNCTIONS  _________________________________________
-    def _value_policy_from_statep(self, model, statep, shaped_reward, sym_avg=False):
+    def _value_policy_from_statep(self, model, statep, reward, sym_avg=False):
         # statep: (Nactions, Nhits)
-        # shaped_reward: float (1.0 unless shaped)
+        # reward: (Nactions)
         assert statep.shape == (self.Nactions, self.Nhits)
 
         ishape = self.NN_input_shape
@@ -333,10 +345,13 @@ class TrainingEnv(SourceTracking):
         expected_value = model.discount * tf.math.reduce_sum(probp * values_next, axis=2)  # sum over hits: (1, Nactions)
         assert expected_value.shape == tuple([1] + [self.Nactions])
 
-        expected_value = expected_value.numpy().squeeze()
+        expected_value = expected_value.numpy().squeeze()  # (Nactions)
+
+        assert reward.shape == tuple([self.Nactions])
+
+        expected_value += reward
 
         action_chosen = np.argmin(expected_value)
-        expected_value = expected_value + shaped_reward
 
         return action_chosen, expected_value
 

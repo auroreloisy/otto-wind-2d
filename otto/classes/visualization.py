@@ -244,7 +244,7 @@ class Visualization:
             else:
                 bottomcolors = plt.cm.get_cmap('Oranges', 128)
                 newcolors = np.vstack((topcolors(0.5),
-                                       bottomcolors(0.6)))
+                                       bottomcolors(0.5)))
 
         cmap0 = ListedColormap(newcolors, name='GreyColors')
         if self.env.Ndim == 2:

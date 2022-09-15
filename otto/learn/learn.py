@@ -585,11 +585,16 @@ def print_stats(stats1, stats2=None):
         if stats2 is None:
             if var == 'p_not_found':
                 print(var, "\t", "{:.4e}".format(stats1[var]))
+            elif var == 'mean':
+                print(var, "\t\t", "{:.4f}".format(stats1[var]),  "+/- {:.4f}".format(stats1["mean_err"]))
             else:
                 print(var, "\t\t", "{:.4f}".format(stats1[var]))
         else:
             if var == 'p_not_found':
                 print(var, "\t", "{:.4e}".format(stats1[var]), "\t\tref: ", "{:.4e}".format(stats2[var]))
+            elif var == 'mean':
+                print(var, "\t\t", "{:.4f}".format(stats1[var]), "+/- {:.4f}".format(stats1["mean_err"]),
+                      "\tref: ", "{:.4f}".format(stats2[var]), "+/- {:.4f}".format(stats2["mean_err"]))
             else:
                 print(var, "\t\t", "{:.4f}".format(stats1[var]), "\t\tref: ", "{:.4f}".format(stats2[var]))
 
@@ -784,7 +789,7 @@ def _Worker(episode, policy, eps, memorize, eval):
         pdf_t (numpy array): distribution of the number of steps to find the source
         memory_s (numpy array or empty): memory of t-states (s), if memorize = True
         memory_sp (numpy array or empty): memory of (t+1)-states (s'), if memorize = True
-        memory_r (numpy array or empty): memory of (t+1)-states (s'), if memorize = True
+        memory_r (numpy array or empty): memory of shaped rewards, if memorize = True
     """
     # copy the env to save time, and reset (according to randomly drawn hit)
     if eval:
@@ -815,7 +820,17 @@ def _Worker(episode, policy, eps, memorize, eval):
             if sym != 0:
                 myenv.apply_sym_transformation(sym)  # transforms p_source, state, agent, ...
         state, statep = myenv.transitions()  # 1, (Nactions, Nhits)
-        shaped_reward = 1.0 - myenv.shaping(which=MYMODEL.shaping, p_source=myenv.p_source, agent=myenv.agent)
+        reward = np.ones(myenv.Nactions)  # unit reward/penalty (Nactions)
+
+        # compute shaped reward for each action
+        if MYMODEL.shaping is not None:
+            for action in range(myenv.Nactions):
+                rew = 0.0
+                for hit in range(myenv.Nhits):
+                    sp = statep[action, hit]
+                    rew += sp.prob * myenv.shaping(which=MYMODEL.shaping, p_source=sp.p_source, agent=sp.agent)
+                reward[action] += MYMODEL.discount * rew
+            reward -= myenv.shaping(which=MYMODEL.shaping, p_source=myenv.p_source, agent=myenv.agent)
 
         if random.random() < eps:  # epsilon-greedy
             action = random.randint(0, myenv.Nactions - 1)
@@ -824,7 +839,7 @@ def _Worker(episode, policy, eps, memorize, eval):
                 action = myenv.choose_action_from_statep(
                     model=MYMODEL,
                     statep=statep,
-                    shaped_reward=shaped_reward,
+                    reward=reward,
                     sym_avg=((not memorize) and SYM_EVAL_ENSEMBLE_AVG)
                 )
             else:
@@ -834,7 +849,7 @@ def _Worker(episode, policy, eps, memorize, eval):
         if memorize:
             memory_s.append(state)
             memory_sp.append(statep)
-            memory_r.append(shaped_reward)
+            memory_r.append(reward)
 
         # step in myenv
         hit, p_end, _ = myenv.step(action, quiet=True)
@@ -855,7 +870,7 @@ def _Worker(episode, policy, eps, memorize, eval):
             if memorize:
                 memory_s = np.asarray(memory_s)  # (Nsteps)
                 memory_sp = np.asarray(memory_sp)  # (Nsteps, Nactions, Nhits)
-                memory_r = np.asarray(memory_r)  # (Nsteps)
+                memory_r = np.asarray(memory_r)  # (Nsteps, Nactions)
 
             break
 
@@ -878,36 +893,36 @@ def new_experience(Nepisodes, policy, eps, parallel):
     Returns:
         states (ndarray): array of states s
         statesp (ndarray): array of corresponding successor states s'
-        shaped_rewards (ndarray): array of shaped rewards
+        rewards (ndarray): array of rewards for correspond actions
     """
     # Running the episodes
     if parallel:  # parallel, but may hang for large NN
         pool = multiprocessing.Pool(N_PARALLEL)
         episodes = range(Nepisodes)
         inputargs = zip(episodes, repeat(policy, Nepisodes), repeat(eps, Nepisodes))
-        _, memory_states, memory_statesp, memory_shaped_rewards = zip(*pool.starmap(WorkerExp, inputargs))
+        _, memory_states, memory_statesp, memory_rewards = zip(*pool.starmap(WorkerExp, inputargs))
         pool.close()
         pool.join()
     else:  # sequential
         memory_states = []
         memory_statesp = []
-        memory_shaped_rewards = []
+        memory_rewards = []
         for episode in range(Nepisodes):
             _, b, c, d = WorkerExp(episode, policy, eps)
             memory_states.append(b)
             memory_statesp.append(c)
-            memory_shaped_rewards.append(d)
+            memory_rewards.append(d)
 
     # Reshaping simulation data
     states = np.empty(tuple([0] + list(memory_states[0].shape[1:])))        # (Nsteps)
     statesp = np.empty(tuple([0] + list(memory_statesp[0].shape[1:])))      # (Nsteps, Nactions, Nhits)
-    shaped_rewards = np.empty(tuple([0] + list(memory_states[0].shape[1:])))        # (Nsteps)
-    for s, sp, r in zip(memory_states, memory_statesp, memory_shaped_rewards):
+    rewards = np.empty(tuple([0] + list(memory_rewards[0].shape[1:])))        # (Nsteps, Nactions)
+    for s, sp, r in zip(memory_states, memory_statesp, memory_rewards):
         states = np.concatenate((states, s), axis=0)
         statesp = np.concatenate((statesp, sp), axis=0)
-        shaped_rewards = np.concatenate((shaped_rewards, r), axis=0)
+        rewards = np.concatenate((rewards, r), axis=0)
 
-    return states, statesp, shaped_rewards
+    return states, statesp, rewards
 
 
 def update_buffer_memory(mem, new, max_size):
@@ -963,20 +978,20 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
         else:
             return max(e_0 * np.exp(-iteration / e_decay), e_floor)
 
-    def get_target(statep, shaped_reward):
+    def get_target(statep, reward):
         if DDQN:
             target = MY_TRAINING_ENV.get_target(
                 modelvalue=MYFROZENMODEL,
                 modelaction=MYMODEL,
                 statep=statep,
-                shaped_reward=shaped_reward,
+                reward=reward,
             )
         else:
             target = MY_TRAINING_ENV.get_target(
                 modelvalue=MYFROZENMODEL,
                 modelaction=None,
                 statep=statep,
-                shaped_reward=shaped_reward,
+                reward=reward,
             )
         return target
 
@@ -986,7 +1001,7 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
     print("Nepisodes: ", Nepisodes)
     eps = eps_exploration(0, e_floor=eps_floor, e_0=eps_0, e_decay=eps_decay)
     print("eps: ", eps)
-    states, statesp, shaped_rewards = new_experience(
+    states, statesp, rewards = new_experience(
         Nepisodes=Nepisodes,
         policy=-1,
         eps=eps,
@@ -997,6 +1012,7 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
     if states.shape[0] > MEMORY_SIZE:
         states = states[:MEMORY_SIZE]
         statesp = statesp[:MEMORY_SIZE]
+        rewards = rewards[:MEMORY_SIZE]
 
     # init input shapes
     _ = MY_TRAINING_ENV.get_state_value(MYMODEL, states[0])
@@ -1055,7 +1071,7 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
         eps = eps_exploration(it, e_floor=eps_floor, e_0=eps_0, e_decay=eps_decay)
         # compute new trajectories
         Nepisodes = max(int(np.ceil(NEW_TRANS_PER_IT / avg_len_episode)), 1)
-        new_states, new_statesp, new_shaped_rewards = new_experience(
+        new_states, new_statesp, new_rewards = new_experience(
             Nepisodes=Nepisodes,
             policy=-1,
             eps=eps,
@@ -1067,11 +1083,11 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
                   ", new = ", new_states.shape[0], ", mem = ", MEMORY_SIZE)
             new_states = new_states[:MEMORY_SIZE]
             new_statesp = new_statesp[:MEMORY_SIZE]
-            new_shaped_rewards = new_shaped_rewards[:MEMORY_SIZE]
+            new_rewards = new_rewards[:MEMORY_SIZE]
         # delete oldest experiences and add the new ones to memory
         states = update_buffer_memory(states, new_states, max_size=MEMORY_SIZE)
         statesp = update_buffer_memory(statesp, new_statesp, max_size=MEMORY_SIZE)
-        shaped_rewards = update_buffer_memory(shaped_rewards, new_shaped_rewards, max_size=MEMORY_SIZE)
+        rewards = update_buffer_memory(rewards, new_rewards, max_size=MEMORY_SIZE)
         renewed_mem = new_states.shape[0] / MEMORY_SIZE
         N_transitions_generated += new_states.shape[0]
 
@@ -1087,7 +1103,7 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
         for gd_step in range(N_GD_STEPS):
             batch = np.random.randint(memory_size, size=BATCH_SIZE)
             x, _, = MY_TRAINING_ENV.states2inputs(states[batch], 0)  # (BATCH_SIZE , inputshape), (BATCH_SIZE)
-            y = get_target(statesp[batch], shaped_rewards[batch])
+            y = get_target(statesp[batch], rewards[batch])
             loss = MYMODEL.train_step(x, y, augment=SYM_TRAIN_ADD_DUPLICATES)  # train (model weights are updated)
             mean_loss += loss
         mean_loss /= N_GD_STEPS

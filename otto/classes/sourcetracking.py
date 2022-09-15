@@ -583,6 +583,7 @@ class SourceTracking:
         if which == "0":
             return 0
         else:
+            # WARNING: must be zero for the terminal state
             if not hasattr(self, 'Manhattan_array'):
                 shape = tuple([2 * n + 1 for n in self.shape])
                 self.Manhattan_array = self._distance(shape=shape, origin=self.shape, norm="Manhattan")
@@ -593,6 +594,7 @@ class SourceTracking:
             if which == "D":
                 return D
             else:
+                # WARNING: if using something else, may need to remove the positivity constraint on the NN
                 raise Exception("This reward shaping function is not implemented")
 
 
