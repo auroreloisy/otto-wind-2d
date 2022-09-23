@@ -1,9 +1,12 @@
 # ____________ BASIC PARAMETERS _______________________________________________________________________________________
 # Source-tracking POMDP
 R_BAR = 2.5
+# Setup used for training
+TRAIN_DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE = True  # only used if TRAIN_DRAW_SOURCE = TRUE
 # Setup used for evaluation
-DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-TRUE_SOURCE_IS_FAKE_SOURCE = True
+EVAL_DRAW_SOURCE = [True, False]  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+EVAL_TRUE_SOURCE_IS_FIXED_SOURCE = [True, False]  # only used if EVAL_DRAW_SOURCE = TRUE
 # Discount factor
 DISCOUNT = 1.0
 # Reward shaping
@@ -14,7 +17,7 @@ FC_UNITS = 1024  # number of units per layers
 # Experience replay
 MEMORY_SIZE = 1000  # number of transitions (s, s') to keep in memory
 # Exploration: eps is the probability of taking a random action when executing the policy
-E_GREEDY_DECAY = 10000   # timescale for eps decay, in number of training iterations
+E_GREEDY_DECAY = 100000   # timescale for eps decay, in number of training iterations
 # Max number of training iterations
 ALGO_MAX_IT = 10000000  # max number of training iterations
 # Evaluation of the RL policy
@@ -28,7 +31,7 @@ N_PARALLEL = 1    # -1 for using all cores, 1 for sequential (useful as parallel
 # Stochastic gradient descent
 BATCH_SIZE = 64  # size of the mini-batch
 N_GD_STEPS = 12  # number of gradient descent steps per training iteration
-LEARNING_RATE = 0.001  # usual learning rate
+LEARNING_RATE = 0.0001  # usual learning rate
 # Experience replay
 REPLAY_NTIMES = 4  # how many times a transition is used for training before being deleted, on average
 # Exploration: eps is the probability of taking a random action when executing the policy
@@ -42,7 +45,7 @@ SYM_TRAIN_RANDOMIZE = True  # whether to apply random symmetry transformations w
 UPDATE_FROZEN_MODEL_EVERY = 1
 DDQN = False  # whether to use Double DQN instead of original DQN
 # Evaluation of the RL policy
-POLICY_REF = None  # heuristic policy to use for comparison
+POLICY_REF = 1  # heuristic policy to use for comparison
 N_RUNS_STATS = None  # number of episodes used to compute the stats of a policy, set automatically if None
 # Monitoring/Saving during the training
 PRINT_INFO_EVERY = 10  # how often to print info on screen, in number of training iterations

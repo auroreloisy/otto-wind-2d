@@ -19,6 +19,7 @@ Parameters of the script are:
 
     - Policy
         - POLICY (int)
+            - -2: perseus
             - -1: neural network
             - 0: infotaxis (Vergassola, Villermaux and Shraiman, Nature 2007)
             - 1: space-aware infotaxis
@@ -32,11 +33,13 @@ Parameters of the script are:
             number of anticipated moves, can be > 1 only for POLICY=0
         - MODEL_PATH (str or None)
             path of the model (neural network) for POLICY=-1, None otherwise
+        - PERSEUS_PATH (str or None)
+            path of the perseus policy (alpha vectors) for POLICY=-2, None otherwise
 
     - Setup
         - DRAW_SOURCE (bool)
             if False, episodes will continue until the source is almost surely found (Bayesian setting)
-        - TRUE_SOURCE_IS_FAKE_SOURCE (bool)
+        - TRUE_SOURCE_IS_FIXED_SOURCE (bool)
             force the location of the source instead of random draw (relevant only is DRAW_SOURCE = True)
         - ZERO_HIT (bool)
             whether to enforce a series of zero hits
@@ -96,11 +99,19 @@ if MODEL_PATH is not None and POLICY != -1:
     raise Exception("Models (set by MODEL_PATH) can only be used with POLICY = -1 (neural network policy). "
                     "If you want to use the model, you must set POLICY = -1. "
                     "If you want a different policy, set MODEL_PATH = None.")
+
+if PERSEUS_PATH is not None and POLICY != -2:
+    raise Exception("Models (set by PERSEUS_PATH) can only be used with POLICY = -2 (Perseus policy). ")
+
 if POLICY == -1:
     from otto.classes.rlpolicy import RLPolicy
     from otto.classes.valuemodel import reload_model
     if MODEL_PATH is None:
         raise Exception("MODEL_PATH cannot be None with a neural network policy!")
+elif POLICY == -2:
+    from otto.classes.perseuspolicy import PerseusPolicy
+    if PERSEUS_PATH is None:
+        raise Exception("PERSEUS_PATH cannot be None with a Perseus policy!")
 else:
     from otto.classes.heuristicpolicy import HeuristicPolicy
 
@@ -121,7 +132,7 @@ def run():
     myenv = env(
         R_bar=R_BAR,
         draw_source=DRAW_SOURCE,
-        true_source_is_fake_source=TRUE_SOURCE_IS_FAKE_SOURCE,
+        true_source_is_fixed_source=TRUE_SOURCE_IS_FIXED_SOURCE,
     )
     print("R_BAR = " + str(myenv.R_bar))
     print("V_BAR = " + str(myenv.V_bar))
@@ -130,7 +141,7 @@ def run():
     print("NORM_POISSON = " + myenv.norm_Poisson)
     print("GRID = " + str(myenv.shape))
     print("DRAW_SOURCE = " + str(myenv.draw_source))
-    print("TRUE_SOURCE_IS_FAKE_SOURCE = " + str(myenv.true_source_is_fake_source))
+    print("TRUE_SOURCE_IS_FIXED_SOURCE = " + str(myenv.true_source_is_fixed_source))
     print("N_HITS = " + str(myenv.Nhits))
     print("MAX_WAIT = " + str(myenv.max_wait))
     print("WAIT = " + str(myenv.wait))
@@ -144,6 +155,14 @@ def run():
         print("POLICY = -1 (" + mypol.policy_name + ")")
         print("MODEL_PATH =", MODEL_PATH)
         print("MODEL_CONFIG =", mymodel.config)
+    elif POLICY == -2:
+        mypol = PerseusPolicy(
+            env=myenv,
+            filepath=PERSEUS_PATH,
+            parallel=True,
+        )
+        print("POLICY = -2 (" + mypol.policy_name + ")")
+        print("PERSEUS_PATH =", PERSEUS_PATH)
     else:
         mypol = HeuristicPolicy(
             env=myenv,

@@ -30,6 +30,8 @@ class SourceTracking:
             max initial waiting time
         draw_source (bool, optional):
             whether to actually draw the source location (otherwise uses Bayesian framework) (default=False)
+        true_source_is_fixed_source (bool, optional):
+            whether to prescribe the source location (default=False), only relevant if draw_source=True
         initial_wait (int or None, optional):
                 value of the initial waiting time, if None drawn randomly according to relevant probability distribution (default=None)
         dummy (bool, optional):
@@ -52,6 +54,8 @@ class SourceTracking:
             norm used for hit detections (default='Euclidean')
         draw_source (bool):
             whether a source location is actually drawn  (otherwise uses Bayesian framework)
+        true_source_is_fixed_source (bool):
+            whether the source location is prescribed, only relevant if draw_source=True
         initial_wait (int):
             value of the initial waiting time
         Nactions (int):
@@ -84,7 +88,7 @@ class SourceTracking:
         tau_bar=150,
         max_wait=1000,
         draw_source=False,
-        true_source_is_fake_source=False,
+        true_source_is_fixed_source=False,
         dummy=False,
     ):
         self.shape = (81, 41)
@@ -108,17 +112,17 @@ class SourceTracking:
         #     self.Nactions += 1
 
         self.draw_source = draw_source
-        if true_source_is_fake_source and not self.draw_source:
-            raise Exception("true source cannot be fake source if not draw_source!")
+        if true_source_is_fixed_source and not self.draw_source:
+            raise Exception("true source cannot be fixed source if not draw_source!")
         if self.draw_source:
-            self.true_source_is_fake_source = true_source_is_fake_source
+            self.true_source_is_fixed_source = true_source_is_fixed_source
         else:
-            self.true_source_is_fake_source = False
+            self.true_source_is_fixed_source = False
         
         if self.Ndim == 2:
-            self._fake_source = [10, 20]  # used to generate the initial beliefs
+            self._fixed_source = [10, 20]  # used to generate the initial beliefs
             if DEBUG:
-                self._fake_source = [3, 5]
+                self._fixed_source = [3, 5]
         else:
             raise Exception("init implemented in 2D only")
 
@@ -398,7 +402,7 @@ class SourceTracking:
         if not hasattr(self, 'p_Poisson'):
             self._compute_p_Poisson()
         # proba detection
-        origin = [self.shape[axis] - 1 - self._fake_source[axis] for axis in range(self.Ndim)]
+        origin = [self.shape[axis] - 1 - self._fixed_source[axis] for axis in range(self.Ndim)]
         p_detection = np.flip(self._extract_N_from_2N(input=self.p_Poisson, origin=tuple(origin))[-1], axis=0)
         # draw agent
         p_location = (p_detection >= min_p) * (p_detection <= max_p)  # is within cone
@@ -410,8 +414,8 @@ class SourceTracking:
         while not success:
             success = self._init_belief()
         if self.draw_source:
-            if self.true_source_is_fake_source:
-                self.source = self._fake_source
+            if self.true_source_is_fixed_source:
+                self.source = self._fixed_source
             else:
                 self._draw_a_source()
 
@@ -431,8 +435,8 @@ class SourceTracking:
             ord = float("inf")
         else:
             raise Exception("This norm is not implemented")
-        d = np.linalg.norm(np.asarray(self.agent) - np.asarray(self._fake_source), ord=ord)
-        x = self.agent[0] - self._fake_source[0]
+        d = np.linalg.norm(np.asarray(self.agent) - np.asarray(self._fixed_source), ord=ord)
+        x = self.agent[0] - self._fixed_source[0]
         mu = self._mean_number_of_hits(d, x)
         probability = np.zeros(self.Nhits)
         sum_proba = 0

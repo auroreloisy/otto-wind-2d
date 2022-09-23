@@ -184,7 +184,7 @@ class Visualization:
                      + "$\qquad$ $\\bar{\\tau} = $" + str(self.env.tau_bar) \
                      + "$\qquad$ $\\bar{\lambda} = $" + str(np.round(self.env.lambda_bar, 2)) \
                      + "$\qquad$ $t_{\mathrm{wait}}$ = " + str(self.env.wait)
-        sup = plt.figtext(0.5, 0.99, toptext, fontsize=13, ha="center", va="top")
+        sup = plt.figtext(0.5, 0.99, toptext, fontsize=12, ha="center", va="top")
         bot = plt.figtext(0.5, 0.01, bottomtext, fontsize=10, ha="center", va="bottom")
         if self.video_live:
             self.artists.append(sup)

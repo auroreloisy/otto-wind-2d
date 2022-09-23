@@ -1,7 +1,7 @@
 # ____________ BASIC PARAMETERS _______________________________________________________________________________________
 # Setup used for evaluation
-DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-TRUE_SOURCE_IS_FAKE_SOURCE = True
+EVAL_DRAW_SOURCE = [True, False]  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+EVAL_TRUE_SOURCE_IS_FIXED_SOURCE = [True, False]  # only used if EVAL_DRAW_SOURCE = TRUE
 # Discount factor
 DISCOUNT = 1.0
 # Reward shaping
@@ -12,7 +12,7 @@ FC_UNITS = 8  # number of units per layers
 # Experience replay
 MEMORY_SIZE = 1000  # number of transitions (s, s') to keep in memory
 # Max number of training iterations
-ALGO_MAX_IT = 1000000  # max number of training iterations
+ALGO_MAX_IT = 20  # max number of training iterations
 # Evaluation of the RL policy
 EVALUATE_PERFORMANCE_EVERY = 10  # how often is the RL policy evaluated, in number of training iterations
 N_RUNS_STATS = 10

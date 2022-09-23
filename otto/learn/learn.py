@@ -53,12 +53,18 @@ Parameters of the script are:
     - Source-tracking POMDP
         - R_BAR (float > 0.0)
             dimensionless source intensity
-            
-    - Setup used for evaluation
-        - DRAW_SOURCE (bool)
+
+    - Setup used for training
+        - TRAIN_DRAW_SOURCE (bool)
             if False, episodes will continue until the source is almost surely found (Bayesian setting)
-        - TRUE_SOURCE_IS_FAKE_SOURCE (bool)
-            force the location of the source instead of random draw (relevant only is DRAW_SOURCE = True)
+        - TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE (bool)
+            force the location of the source instead of random draw (relevant only is TRAIN_DRAW_SOURCE = True)
+
+    - Setup used for evaluation
+        - EVAL_DRAW_SOURCE (list(bool))
+            if False, episodes will continue until the source is almost surely found (Bayesian setting)
+        - EVAL_TRUE_SOURCE_IS_FIXED_SOURCE (list(bool))
+            force the location of the source instead of random draw (relevant only is EVAL_DRAW_SOURCE = True)
 
     - Reinforcement learning
         Tricks to accelerate learning
@@ -313,11 +319,15 @@ def save_parameters(env, model):
         else:
             model.summary(print_fn=lambda x: out.write(x + '\n'))
 
+        print("* Training env", file=out)
+        print("TRAIN_DRAW_SOURCE = " + str(TRAIN_DRAW_SOURCE), file=out)
+        print("TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE = " + str(TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE), file=out)
+
         print("* Performance evaluation", file=out)
         print("EVALUATE_PERFORMANCE_EVERY = " + str(EVALUATE_PERFORMANCE_EVERY), file=out)
         print("N_RUNS_STATS = " + str(N_RUNS_STATS), file=out)
-        print("DRAW_SOURCE = " + str(DRAW_SOURCE), file=out)
-        print("TRUE_SOURCE_IS_FAKE_SOURCE = " + str(TRUE_SOURCE_IS_FAKE_SOURCE), file=out)
+        print("EVAL_DRAW_SOURCE = " + str(EVAL_DRAW_SOURCE), file=out)
+        print("EVAL_TRUE_SOURCE_IS_FIXED_SOURCE = " + str(EVAL_TRUE_SOURCE_IS_FIXED_SOURCE), file=out)
 
         print("* Save parameters", file=out)
         print("SAVE_MODEL_EVERY = " + str(SAVE_MODEL_EVERY), file=out)
@@ -363,8 +373,8 @@ def param2subtitle(env, model):
             + "DRAW_SOURCE = "
             + str(env.draw_source)
             + "    "
-            + "TRUE_SOURCE_IS_FAKE_SOURCE  = "
-            + str(env.true_source_is_fake_source)
+            + "TRUE_SOURCE_IS_FIXED_SOURCE  = "
+            + str(env.true_source_is_fixed_source)
             + "\n\n"
             + "SYM_EVAL_ENSEMBLE_AVG="
             + str(SYM_EVAL_ENSEMBLE_AVG)
@@ -471,14 +481,14 @@ def init_training_env():
     """
     myenv = env(
         R_bar=R_BAR,
-        draw_source=False,
-        true_source_is_fake_source=False,
+        draw_source=TRAIN_DRAW_SOURCE,
+        true_source_is_fixed_source=TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE,
     )
 
     return myenv
 
 
-def init_eval_env():
+def init_eval_env(eval_draw_source, eval_true_source_is_fixed_source):
     """
     Instanciate an environment.
 
@@ -487,15 +497,15 @@ def init_eval_env():
     """
     myenv = env(
         R_bar=R_BAR,
-        draw_source=DRAW_SOURCE,
-        true_source_is_fake_source=TRUE_SOURCE_IS_FAKE_SOURCE,
+        draw_source=eval_draw_source,
+        true_source_is_fixed_source=eval_true_source_is_fixed_source,
     )
 
     return myenv
 
 
 # Compute, print and plot stats ________________________________________________________________
-def compute_stats(Nepisodes, policy, parallel=True):
+def compute_stats(Nepisodes, policy, eval_index, parallel=True):
     """
     Launches the episodes and save statistics in a dictionary.
 
@@ -514,14 +524,14 @@ def compute_stats(Nepisodes, policy, parallel=True):
     if parallel:    # parallel, will hang for large NN
         pool = multiprocessing.Pool(N_PARALLEL)
         episodes = range(Nepisodes)
-        inputargs = zip(episodes, repeat(policy, Nepisodes))
+        inputargs = zip(episodes, repeat(policy, Nepisodes), repeat(eval_index, Nepisodes))
         pdfs_t, _, _, _ = zip(*pool.starmap(WorkerStats, inputargs))
         pool.close()
         pool.join()
     else:   # sequential
         pdfs_t = []
         for episode in range(Nepisodes):
-            a, _, _, _ = WorkerStats(episode, policy)
+            a, _, _, _ = WorkerStats(episode, policy, eval_index)
             pdfs_t.append(a)
 
     # Compiling the results
@@ -599,7 +609,7 @@ def print_stats(stats1, stats2=None):
                 print(var, "\t\t", "{:.4f}".format(stats1[var]), "\t\tref: ", "{:.4f}".format(stats2[var]))
 
 
-def plot_stats(statsRL, statsref=None, title='', file_suffix='0'):
+def plot_stats(statsRL, statsref=None, eval_index=None, title='', file_suffix='0'):
     """
     Plot performance stats of the RL policy in a figure and save it.
 
@@ -657,13 +667,14 @@ def plot_stats(statsRL, statsref=None, title='', file_suffix='0'):
                 ax[i].legend(fontsize=10, loc='lower center')
 
     fig.suptitle(title, y=0.98)
-    plt.figtext(0.5, 0.003, param2subtitle(MY_EVAL_ENV, MYMODEL), fontsize=7, ha="center", va="bottom")
+    if eval_index is not None:
+        plt.figtext(0.5, 0.003, param2subtitle(MY_EVAL_ENVS[eval_index], MYMODEL), fontsize=7, ha="center", va="bottom")
     plt.draw()
     fig.savefig(fig_file)
     plt.close(fig)
 
 
-def plot_stats_evolution(data, ref_stats=None, title=''):
+def plot_stats_evolution(data, ref_stats=None, eval_index=None, title='', file_suffix=''):
     """
     Plot performance vs training time.
 
@@ -688,8 +699,8 @@ def plot_stats_evolution(data, ref_stats=None, title=''):
     index_list = [3, 4, 5, 5, 7, 8]
     names_list = ("eps", "p_not_found", "mean", "rel_mean", "p50", "p99")
 
-    fig_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_figure_learning_progress" + ".png"))
-    fig_file_bkp = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_figure_learning_progress" + "_bkp.png"))
+    fig_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_figure_learning_progress" + file_suffix + ".png"))
+    fig_file_bkp = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_figure_learning_progress" + file_suffix + "_bkp.png"))
     if os.path.isfile(fig_file):
         os.rename(fig_file, fig_file_bkp)
 
@@ -754,7 +765,8 @@ def plot_stats_evolution(data, ref_stats=None, title=''):
                 ax[r, i].legend(fontsize=12)
 
     fig.suptitle(title, y=0.98)
-    plt.figtext(0.5, 0.003, param2subtitle(MY_EVAL_ENV, MYMODEL), fontsize=7, ha="center", va="bottom")
+    if eval_index is not None:
+        plt.figtext(0.5, 0.003, param2subtitle(MY_EVAL_ENVS[eval_index], MYMODEL), fontsize=7, ha="center", va="bottom")
     plt.draw()
     fig.savefig(fig_file)
     plt.close(fig)
@@ -762,17 +774,17 @@ def plot_stats_evolution(data, ref_stats=None, title=''):
         os.remove(fig_file_bkp)
 
 # Worker (compute trajectories) _______________________________________________________________
-def WorkerStats(episode, policy):
+def WorkerStats(episode, policy, eval_index):
     """Wrapper of Worker for computing stats of a policy."""
-    pdf_t, _, _, _ = _Worker(episode=episode, policy=policy, eps=0.0, memorize=False, eval=True)
+    pdf_t, _, _, _ = _Worker(episode=episode, policy=policy, eps=0.0, memorize=False, eval_index=eval_index)
     return pdf_t, _, _, _
 
 def WorkerExp(episode, policy, eps):
     """Wrapper of Worker for generating new experience."""
-    pdf_t, memory_s, memory_sp, memory_r = _Worker(episode=episode, policy=policy, eps=eps, memorize=True, eval=False)
+    pdf_t, memory_s, memory_sp, memory_r = _Worker(episode=episode, policy=policy, eps=eps, memorize=True, eval_index=-1)
     return pdf_t, memory_s, memory_sp, memory_r
 
-def _Worker(episode, policy, eps, memorize, eval):
+def _Worker(episode, policy, eps, memorize, eval_index):
     """Execute one episode.
 
     1. The agent and the source are initialized
@@ -784,6 +796,7 @@ def _Worker(episode, policy, eps, memorize, eval):
         policy (int): policy to follow
         eps (0 <= float <= 1): value of eps for exploration
         memorize: whether to memorize states s and s' along the search
+        eval_index (int): index of the eval env, -1 for training env
 
     Returns:
         pdf_t (numpy array): distribution of the number of steps to find the source
@@ -792,10 +805,10 @@ def _Worker(episode, policy, eps, memorize, eval):
         memory_r (numpy array or empty): memory of shaped rewards, if memorize = True
     """
     # copy the env to save time, and reset (according to randomly drawn hit)
-    if eval:
-        myenv = deepcopy(MY_EVAL_ENV)
-    else:
+    if eval_index < 0:
         myenv = deepcopy(MY_TRAINING_ENV)
+    else:
+        myenv = deepcopy(MY_EVAL_ENVS[eval_index])
     myenv.restart()
     if policy != -1:
         mypol = HeuristicPolicy(env=myenv, policy=policy)
@@ -970,7 +983,7 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
         eps_0 (float): initial value of the exploration parameter eps
         eps_decay (int): decay timescale of the exploration parameter eps (in number of training iterations)
         max_it (int): training stops if training iteration > max_it
-        ref_stats (dict or None): stats of a reference policy (as computed by :func:`compute_stats`), for plots only
+        ref_stats (list of dict or None): stats of reference policy for each eval env (as computed by :func:`compute_stats`), for plots only
     """
     def eps_exploration(iteration, e_floor, e_0, e_decay):
         if e_decay is None:
@@ -1020,7 +1033,9 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
     # iterating
     print("* start training...")
     it = 0
-    stats_history = np.nan * np.zeros(9)
+    stats_history = []
+    for _ in range(len(MY_EVAL_ENVS)):
+        stats_history.append(np.nan * np.zeros(9))
 
     N_transitions_generated = states.shape[0]
     N_transitions_seen = 0
@@ -1045,24 +1060,35 @@ def train_model(eps_floor, eps_0, eps_decay, max_it, ref_stats):
         # *** Generate accurate stats of current model-based policy, plot the results
         if it % EVALUATE_PERFORMANCE_EVERY == 0:
             print("* evaluating performance of the current model-based policy...")
-            stats = compute_stats(Nepisodes=N_RUNS_STATS, policy=-1, parallel=N_RUNS_STATS >= N_PARALLEL > 1)
-            print_stats(stats, ref_stats)
-            titlestr = "evaluation of current RL policy, training it = " + str(it) \
-                       + ", transitions seen = " + "{:.2e}".format(N_transitions_seen)
-            plot_stats(statsRL=stats,
-                       statsref=ref_stats,
-                       title=titlestr,
-                       file_suffix=str(it // EVALUATE_PERFORMANCE_EVERY))
-            add_stats = np.array([it, N_transitions_seen, N_transitions_generated, eps,
-                                  stats["p_not_found"], stats["mean"], stats["mean_err"], stats["p50"], stats["p99"]])
-            stats_history = np.vstack((stats_history, add_stats))
-            stats_history_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_table_stats" + ".npy"))
-            np.save(stats_history_file, stats_history)
-            titlestr = "evolution of performance during training (currently: training it = " + str(it) \
-                       + ", transitions seen = " + "{:.2e}".format(N_transitions_seen) + ")"
-            plot_stats_evolution(data=stats_history,
-                                 ref_stats=ref_stats,
-                                 title=titlestr)
+            for eval_index in range(len(MY_EVAL_ENVS)):
+                if len(MY_EVAL_ENVS) > 1:
+                    print("   for env " + str(eval_index + 1) + "/" + str(len(MY_EVAL_ENVS)))
+                stats = compute_stats(Nepisodes=N_RUNS_STATS, policy=-1, eval_index=eval_index, parallel=N_RUNS_STATS >= N_PARALLEL > 1)
+                print_stats(stats, ref_stats[eval_index])
+                titlestr = "evaluation of current RL policy, training it = " + str(it) \
+                           + ", transitions seen = " + "{:.2e}".format(N_transitions_seen)
+                plot_stats(statsRL=stats,
+                           statsref=ref_stats[eval_index],
+                           eval_index=eval_index,
+                           title=titlestr,
+                           file_suffix=str(it // EVALUATE_PERFORMANCE_EVERY) if len(MY_EVAL_ENVS) == 1
+                           else 'env' + str(eval_index) + "_" + str(it // EVALUATE_PERFORMANCE_EVERY))
+                add_stats = np.array([it, N_transitions_seen, N_transitions_generated, eps,
+                                      stats["p_not_found"], stats["mean"], stats["mean_err"], stats["p50"], stats["p99"]])
+                stats_history[eval_index] = np.vstack((stats_history[eval_index], add_stats))
+                if len(MY_EVAL_ENVS) == 1:
+                    stats_history_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_table_stats" + ".npy"))
+                else:
+                    stats_history_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_table_stats_env" + str(eval_index) + ".npy"))
+                np.save(stats_history_file, stats_history[eval_index])
+                titlestr = "evolution of performance during training (currently: training it = " + str(it) \
+                           + ", transitions seen = " + "{:.2e}".format(N_transitions_seen) + ")"
+                plot_stats_evolution(data=stats_history[eval_index],
+                                     ref_stats=ref_stats[eval_index],
+                                     eval_index=eval_index,
+                                     title=titlestr,
+                                     file_suffix='' if len(MY_EVAL_ENVS) == 1 else '_env' + str(eval_index)
+                                     )
             print(">>> Current results saved in the directory: " + DIR_OUTPUTS)
 
         ###################### GENERATE EXP
@@ -1138,12 +1164,17 @@ def run():
     save_parameters(MY_TRAINING_ENV, MYMODEL)
 
     if POLICY_REF is not None:
-        # Infotaxis stats, for reference
+        ref_stats = []
+        # Heuristics stats, for reference
         print("\n*** Computing stats of reference policy (" + str(POLICY_REF) + ") for comparison...")
-        ref_stats = compute_stats(Nepisodes=N_RUNS_STATS, policy=POLICY_REF, parallel=True)
-        print_stats(ref_stats)
-        if NEW_TRANS_PER_IT < ref_stats['mean']:
-            raise Exception("Increase NEW_TRANS_PER_IT (ie increase BATCH_SIZE or N_GD_STEPS)")
+        for eval_index in range(len(MY_EVAL_ENVS)):
+            if len(MY_EVAL_ENVS) > 1:
+                print("   for env " + str(eval_index + 1) + "/" + str(len(MY_EVAL_ENVS)))
+            stats = compute_stats(Nepisodes=N_RUNS_STATS, policy=POLICY_REF, eval_index=eval_index, parallel=True)
+            print_stats(stats)
+            ref_stats.append(stats)
+            if NEW_TRANS_PER_IT < stats['mean']:
+                raise Exception("Increase NEW_TRANS_PER_IT (ie increase BATCH_SIZE or N_GD_STEPS)")
     else:
         ref_stats = None
 
@@ -1159,13 +1190,16 @@ def run():
 
     # Compute stats of the RL policy
     print("\n*** Computing stats of the RL policy...")
-    stats = compute_stats(Nepisodes=N_RUNS_STATS, policy=-1, parallel=N_RUNS_STATS >= N_PARALLEL > 1)
-
-    print_stats(stats, ref_stats)
-    plot_stats(statsRL=stats,
-               statsref=ref_stats,
-               title="evaluation of RL policy",
-               file_suffix='evaluation')
+    for eval_index in range(len(MY_EVAL_ENVS)):
+        if len(MY_EVAL_ENVS) > 1:
+            print("   for env " + str(eval_index + 1) + "/" + str(len(MY_EVAL_ENVS)))
+        stats = compute_stats(Nepisodes=N_RUNS_STATS, policy=-1, eval_index=eval_index, parallel=N_RUNS_STATS >= N_PARALLEL > 1)
+        print_stats(stats, ref_stats[eval_index])
+        plot_stats(statsRL=stats,
+                   statsref=ref_stats[eval_index],
+                   eval_index=eval_index,
+                   title="evaluation of RL policy",
+                   file_suffix='evaluation' if len(MY_EVAL_ENVS) == 1 else 'env' + str(eval_index) + '_evaluation')
 
 
 if __name__ == '__main__':
@@ -1190,7 +1224,9 @@ if __name__ == '__main__':
 
     print("\n*** Building env...")
     MY_TRAINING_ENV = init_training_env()
-    MY_EVAL_ENV = init_eval_env()
+    MY_EVAL_ENVS = []
+    for eval_draw_source, eval_true_source_is_fixed_source in zip(EVAL_DRAW_SOURCE, EVAL_TRUE_SOURCE_IS_FIXED_SOURCE):
+        MY_EVAL_ENVS.append(init_eval_env(eval_draw_source, eval_true_source_is_fixed_source))
 
     # Model initialization
     print("\n*** Building model...")

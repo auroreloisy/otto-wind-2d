@@ -43,11 +43,13 @@ Parameters of the script are:
     - Setup
         - DRAW_SOURCE (bool)
             if False, episodes will continue until the source is almost surely found (Bayesian setting)
-        - TRUE_SOURCE_IS_FAKE_SOURCE (bool)
+        - TRUE_SOURCE_IS_FIXED_SOURCE (bool)
             force the location of the source instead of random draw (relevant only is DRAW_SOURCE = True)
 
     - Policy
         - POLICY (int)
+            - -2: perseus
+            - -2: perseus
             - -1: neural network
             - 0: infotaxis (Vergassola, Villermaux and Shraiman, Nature 2007)
             - 1: space-aware infotaxis
@@ -61,6 +63,8 @@ Parameters of the script are:
             number of anticipated moves, can be > 1 only for POLICY=0
         - MODEL_PATH (str or None)
             path of the model (neural network) for POLICY=-1, None otherwise
+        - PERSEUS_PATH (str or None)
+            path of the perseus policy (alpha vectors) for POLICY=-2, None otherwise
 
     - Criteria for episode termination
         - STOP_t (int > 0 or None)
@@ -136,11 +140,19 @@ if MODEL_PATH is not None and POLICY != -1:
     raise Exception("Models (set by MODEL_PATH) can only be used with POLICY = -1 (neural network policy). "
                     "If you want to use the model, you must set POLICY = -1. "
                     "If you want a different policy, set MODEL_PATH = None.")
+
+if PERSEUS_PATH is not None and POLICY != -2:
+    raise Exception("Models (set by PERSEUS_PATH) can only be used with POLICY = -2 (Perseus policy). ")
+
 if POLICY == -1:
     from otto.classes.rlpolicy import RLPolicy
     from otto.classes.valuemodel import reload_model
     if MODEL_PATH is None:
         raise Exception("MODEL_PATH cannot be None with a neural network policy!")
+elif POLICY == -2:
+    from otto.classes.perseuspolicy import PerseusPolicy
+    if PERSEUS_PATH is None:
+        raise Exception("PERSEUS_PATH cannot be None with a Perseus policy!")
 else:
     from otto.classes.heuristicpolicy import HeuristicPolicy
 
@@ -211,13 +223,19 @@ def init_envs():
     myenv = env(
         R_bar=R_BAR,
         draw_source=DRAW_SOURCE,
-        true_source_is_fake_source=TRUE_SOURCE_IS_FAKE_SOURCE,
+        true_source_is_fixed_source=TRUE_SOURCE_IS_FIXED_SOURCE,
     )
     if POLICY == -1:
         mymodel = reload_model(MODEL_PATH, inputshape=myenv.NN_input_shape)
         mypol = RLPolicy(
             env=myenv,
             model=mymodel,
+        )
+    elif POLICY == -2:
+        mypol = PerseusPolicy(
+            env=myenv,
+            filepath=PERSEUS_PATH,
+            parallel=True,
         )
     else:
         mypol = HeuristicPolicy(
@@ -232,11 +250,11 @@ def check_envs(env, pol):
     """Check that the attributes of env and pol match the required parameters."""
     assert env.R_bar == R_BAR
     assert env.draw_source == DRAW_SOURCE
-    assert env.true_source_is_fake_source == TRUE_SOURCE_IS_FAKE_SOURCE
+    assert env.true_source_is_fixed_source == TRUE_SOURCE_IS_FIXED_SOURCE
     
     assert pol.env == env
     assert pol.policy_index == POLICY
-    if POLICY != -1:
+    if POLICY >= 0:
         assert pol.steps_ahead == STEPS_AHEAD
     
 
@@ -400,7 +418,7 @@ def run():
     mydummyenv = env(
         R_bar=R_BAR,
         draw_source=DRAW_SOURCE,
-        true_source_is_fake_source=TRUE_SOURCE_IS_FAKE_SOURCE,
+        true_source_is_fixed_source=TRUE_SOURCE_IS_FIXED_SOURCE,
         dummy=True,
     )
 
@@ -416,12 +434,14 @@ def run():
         print("NORM_POISSON = " + mydummyenv.norm_Poisson)
         print("GRID = " + str(mydummyenv.shape))
         print("DRAW_SOURCE = " + str(mydummyenv.draw_source))
-        print("TRUE_SOURCE_IS_FAKE_SOURCE = " + str(mydummyenv.true_source_is_fake_source))
+        print("TRUE_SOURCE_IS_FIXED_SOURCE = " + str(mydummyenv.true_source_is_fixed_source))
         print("N_HITS = " + str(mydummyenv.Nhits))
         print("MAX_WAIT = " + str(mydummyenv.max_wait))
         print("POLICY = " + str(POLICY))
         if POLICY == -1:
             print("MODEL_PATH = " + str(MODEL_PATH))
+        elif POLICY == -2:
+            print("PERSEUS_PATH = " + str(PERSEUS_PATH))
         else:
             print("STEPS_AHEAD = " + str(STEPS_AHEAD))
         print("EPSILON = " + str(EPSILON))
@@ -588,7 +608,7 @@ def run():
         inputs = {
             "R_BAR": R_BAR,
             "DRAW_SOURCE": DRAW_SOURCE,
-            "TRUE_SOURCE_IS_FAKE_SOURCE": TRUE_SOURCE_IS_FAKE_SOURCE,
+            "TRUE_SOURCE_IS_FIXED_SOURCE": TRUE_SOURCE_IS_FIXED_SOURCE,
             "POLICY": POLICY,
             "STEPS_AHEAD": STEPS_AHEAD,
             "MODEL_PATH": MODEL_PATH,
@@ -633,6 +653,8 @@ def run():
         # create and save figures
         if POLICY == -1:
             specifics = "MODEL = " + os.path.basename(MODEL_PATH)
+        elif POLICY == -2:
+            specifics = "PERSEUS = " + os.path.basename(PERSEUS_PATH)
         else:
             specifics = "STEPS_AHEAD = " + str(STEPS_AHEAD)
 
@@ -643,8 +665,8 @@ def run():
                 + "DRAW_SOURCE = "
                 + str(mydummyenv.draw_source)
                 + ", "
-                + "TRUE_SOURCE_IS_FAKE_SOURCE = "
-                + str(mydummyenv.true_source_is_fake_source)
+                + "TRUE_SOURCE_IS_FIXED_SOURCE = "
+                + str(mydummyenv.true_source_is_fixed_source)
                 + ", "
                 + "POLICY = "
                 + str(POLICY)
@@ -849,7 +871,7 @@ if __name__ == "__main__":
 
     # autoset numerical parameters
     STOP_t, N_RUNS, MAX_N_RUNS = autoset_numerical_parameters()
-    if POLICY == -1:
+    if POLICY == -1 or POLICY == - 2:
         STEPS_AHEAD = None
     else:
         MODEL_PATH = None
