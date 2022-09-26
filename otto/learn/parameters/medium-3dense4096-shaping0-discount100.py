@@ -13,7 +13,7 @@ DISCOUNT = 1.0
 REWARD_SHAPING = "0"
 # Neural network (NN) architecture
 FC_LAYERS = 3  # number of hidden layers
-FC_UNITS = 1024  # number of units per layers
+FC_UNITS = 4096  # number of units per layers
 # Experience replay
 MEMORY_SIZE = 1000  # number of transitions (s, s') to keep in memory
 # Restart from saved model, if None start from scratch

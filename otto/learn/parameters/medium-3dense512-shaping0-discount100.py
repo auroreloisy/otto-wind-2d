@@ -1,9 +1,12 @@
 # ____________ BASIC PARAMETERS _______________________________________________________________________________________
 # Source-tracking POMDP
 R_BAR = 2.5
+# Setup used for training
+TRAIN_DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE = True  # only used if TRAIN_DRAW_SOURCE = TRUE
 # Setup used for evaluation
-EVAL_DRAW_SOURCE = [True, False]  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-EVAL_TRUE_SOURCE_IS_FIXED_SOURCE = [True, False]  # only used if EVAL_DRAW_SOURCE = TRUE
+EVAL_DRAW_SOURCE = [True]  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+EVAL_TRUE_SOURCE_IS_FIXED_SOURCE = [True]  # only used if EVAL_DRAW_SOURCE = TRUE
 # Discount factor
 DISCOUNT = 1.0
 # Reward shaping
