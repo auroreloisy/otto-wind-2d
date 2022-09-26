@@ -510,14 +510,15 @@ class SourceTracking:
         return 0
 
     def _is_agent_stuck(self):
-        agent_stuck = False
-        if self._agentoo == self.agent:
-            self._repeated_visits += 1
-        else:
-            self._repeated_visits = 0
-        if self._repeated_visits > 8:
-            agent_stuck = True
-        return agent_stuck
+        return False  # disabled
+        # agent_stuck = False
+        # if self._agentoo == self.agent:
+        #     self._repeated_visits += 1
+        # else:
+        #     self._repeated_visits = 0
+        # if self._repeated_visits > 8:
+        #     agent_stuck = True
+        # return agent_stuck
 
     def _extract_N_from_2N(self, input, origin):
         if len(origin) != self.Ndim:
