@@ -646,6 +646,10 @@ def run():
         table_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_table_CDF_nsteps" + ".npy"))
         np.save(table_file, np.vstack((t_bins, cdf_t_tot)))
 
+        # save PDF of number of steps
+        table_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_table_PDF_nsteps" + ".npy"))
+        np.save(table_file, np.vstack((t_bins, pdf_t_tot)))
+
         # save CDF of number of hits
         table_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_table_CDF_nhits" + ".npy"))
         np.save(table_file, np.vstack((h_bins, cdf_h_tot)))
