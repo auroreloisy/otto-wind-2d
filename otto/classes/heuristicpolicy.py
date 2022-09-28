@@ -158,7 +158,8 @@ class HeuristicPolicy(Policy):
 
                 delta_entropy[a] = expected_S - self.env.entropy
 
-        action_chosen = np.argwhere(np.abs(delta_entropy - np.min(delta_entropy)) < EPSILON_CHOICE).flatten()[0]
+        # action_chosen = np.argwhere(np.abs(delta_entropy - np.min(delta_entropy)) < EPSILON_CHOICE).flatten()[0]
+        action_chosen = np.argmin(delta_entropy)
 
         return action_chosen, -delta_entropy
 
@@ -410,7 +411,8 @@ class HeuristicPolicy(Policy):
 
                 to_minimize[a] = expected_value
 
-        action_chosen = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()[0]
+        # action_chosen = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()[0]
+        action_chosen = np.argmin(to_minimize)
 
         return action_chosen, to_minimize
 
@@ -421,7 +423,8 @@ class HeuristicPolicy(Policy):
             agent_, move_possible = self.env._move(a, self.env.agent)
             if move_possible:
                 p[a] = 1.0 - self.env.p_source[tuple(agent_)]
-        action_chosen = np.argwhere(np.abs(p - np.min(p)) < EPSILON_CHOICE).flatten()[0]
+        # action_chosen = np.argwhere(np.abs(p - np.min(p)) < EPSILON_CHOICE).flatten()[0]
+        action_chosen = np.argmin(p)
         return action_chosen, p
 
     def _init_mean_distance_policy(self, ):
@@ -469,7 +472,8 @@ class HeuristicPolicy(Policy):
                     # minimize a linear combination of the two
                     to_minimize[a] = (1.0 - p_end) * np.sum(p_hit * D)
 
-        action_chosen = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()[0]
+        # action_chosen = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()[0]
+        action_chosen = np.argmin(to_minimize)
 
         return action_chosen, to_minimize
 
