@@ -370,10 +370,16 @@ def param2subtitle(env, model):
             + "STOP_p="
             + str(STOP_p)
             + "    "
-            + "DRAW_SOURCE = "
+            + "TRAIN_DRAW_SOURCE = "
+            + str(TRAIN_DRAW_SOURCE)
+            + "    "
+            + "TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE = "
+            + str(TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE)
+            + "    "
+            + "EVAL_DRAW_SOURCE = "
             + str(env.draw_source)
             + "    "
-            + "TRUE_SOURCE_IS_FIXED_SOURCE  = "
+            + "EVAL_TRUE_SOURCE_IS_FIXED_SOURCE  = "
             + str(env.true_source_is_fixed_source)
             + "\n\n"
             + "SYM_EVAL_ENSEMBLE_AVG="

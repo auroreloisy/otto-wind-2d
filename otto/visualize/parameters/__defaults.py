@@ -7,8 +7,8 @@ MODEL_PATH = None  # saved model for POLICY=-1, e.g., "../learn/models/20220201-
 PERSEUS_PATH = None  # save Perseus policy for POLICY=-2, e.g., "../../perseus/vf_rate_5.0_gamma_0.98_ic2_it_21_shaping_factor_0.1_shaping_power_1.0_nb_45000_epsilon_0.0_v2.pkl"
 STEPS_AHEAD = 1  # number of anticipated moves, can be > 1 only for POLICY=0
 # Setup
-DRAW_SOURCE = False  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-TRUE_SOURCE_IS_FIXED_SOURCE = False
+DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+TRUE_SOURCE_IS_FIXED_SOURCE = True
 ZERO_HIT = False  # whether to enforce a series of zero hits
 # Visualization
 VISU_MODE = 2  # 0: run without video, 1: create video in the background, 2: create video and show live preview (slower)
