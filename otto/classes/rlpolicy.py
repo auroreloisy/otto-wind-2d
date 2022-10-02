@@ -136,6 +136,7 @@ class RLPolicy(Policy):
 
         expected_value = rewards + expected_value.numpy()
 
-        action_chosen = np.argwhere(np.abs(expected_value - np.min(expected_value)) < EPSILON_CHOICE).flatten()[0]
+        # action_chosen = np.argwhere(np.abs(expected_value - np.min(expected_value)) < EPSILON_CHOICE).flatten()[0]
+        action_chosen = np.argmin(expected_value)
 
         return action_chosen, expected_value

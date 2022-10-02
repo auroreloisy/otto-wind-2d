@@ -483,5 +483,6 @@ class HeuristicPolicy(Policy):
         # implement your policy here
         # ....
         print("Implement your own policy!")
-        action_chosen = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()[0]
+        # action_chosen = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()[0]
+        action_chosen = np.argmin(to_minimize)
         return action_chosen, to_minimize
