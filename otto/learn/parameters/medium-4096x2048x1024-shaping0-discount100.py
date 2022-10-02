@@ -2,11 +2,11 @@
 # Source-tracking POMDP
 R_BAR = 2.5
 # Setup used for training
-TRAIN_DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE = True  # only used if TRAIN_DRAW_SOURCE = TRUE
+TRAIN_DRAW_SOURCE = False  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+TRAIN_TRUE_SOURCE_IS_FIXED_SOURCE = False  # only used if TRAIN_DRAW_SOURCE = TRUE
 # Setup used for evaluation
-EVAL_DRAW_SOURCE = [True]  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-EVAL_TRUE_SOURCE_IS_FIXED_SOURCE = [True]  # only used if EVAL_DRAW_SOURCE = TRUE
+EVAL_DRAW_SOURCE = [False]  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
+EVAL_TRUE_SOURCE_IS_FIXED_SOURCE = [False]  # only used if EVAL_DRAW_SOURCE = TRUE
 # Discount factor
 DISCOUNT = 1.0
 # Reward shaping
@@ -15,7 +15,18 @@ REWARD_SHAPING = "0"
 FC_LAYERS = 3  # number of hidden layers
 FC_UNITS = (4096, 2048, 1024)  # number of units per layers
 # Experience replay
-MEMORY_SIZE = 1000  # number of transitions (s, s') to keep in memory
+MEMORY_SIZE = 500  # number of transitions (s, s') to keep in memory
+# Learning rate
+LEARNING_RATE = 1e-3  # usual learning rate
+# Exploration: eps is the probability of taking a random action when executing the policy
+E_GREEDY_FLOOR = 0.1  # floor value of eps (cannot be smaller than that)
+E_GREEDY_0 = 1.0  # initial value of eps
+E_GREEDY_DECAY = 10 / LEARNING_RATE   # timescale for eps decay, in number of training iterations
+# Evaluation of the RL policy
+EVALUATE_PERFORMANCE_EVERY = 5000  # how often is the RL policy evaluated, in number of training iterations
+# Evaluation of the RL policy
+POLICY_REF = 1  # heuristic policy to use for comparison
+N_RUNS_STATS = 500  # number of episodes used to compute the stats of a policy, set automatically if None
 # Restart from saved model, if None start from scratch
 MODEL_PATH = None  # path to saved model, e.g., "./models/20220201-230054/20220201-230054_model"
 # Parallelization: how many episodes are computed in parallel (how many cores are used)
