@@ -1,17 +1,13 @@
 # ____________ BASIC PARAMETERS _______________________________________________________________________________________
 # Source-tracking POMDP
 R_BAR = 2.5
-# Setup used for training
-TRAIN_DRAW_SOURCE = False  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-# Setup used for evaluation
-EVAL_DRAW_SOURCE = False  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
 # Discount factor
 DISCOUNT = 1.0
 # Reward shaping
 REWARD_SHAPING = "0"
 # Neural network (NN) architecture
 FC_LAYERS = 3  # number of hidden layers
-FC_UNITS = (4096, 2048, 1024)  # number of units per layers
+FC_UNITS = (1024, 1024, 1024)  # number of units per layers
 # Experience replay
 MEMORY_SIZE = 500  # number of transitions (s, s') to keep in memory
 # Learning rate
