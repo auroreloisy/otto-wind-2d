@@ -133,5 +133,11 @@ dmypy.json
 
 
 #--------------------- PERSO ----------------
+otto/*/parameters/quicktest.py
+otto/visualize/outputs/*
+otto/evaluate/outputs/*
+otto/learn/outputs/*
+otto/evaluate/tmp/*
+otto/learn/models/*
 perseus/*.pkl
 

@@ -7,8 +7,7 @@ MODEL_PATH = None  # saved model for POLICY=-1, e.g., "../learn/models/20220201-
 PERSEUS_PATH = None  # save Perseus policy for POLICY=-2, e.g., "../../perseus/vf_rate_5.0_gamma_0.98_ic2_it_21_shaping_factor_0.1_shaping_power_1.0_nb_45000_epsilon_0.0_v2.pkl"
 STEPS_AHEAD = 1  # number of anticipated moves, can be > 1 only for POLICY=0
 # Setup
-DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-TRUE_SOURCE_IS_FIXED_SOURCE = True
+DRAW_SOURCE = False  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
 # Parallelization
 N_PARALLEL = -1  # -1 for using all cores, 1 for sequential (useful as parallel code may hang with larger NN)
 # ____________ ADVANCED PARAMETERS ____________________________________________________________________________________

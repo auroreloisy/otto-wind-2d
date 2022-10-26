@@ -183,7 +183,7 @@ class Visualization:
                      + "$\qquad$ $\\bar{V} = $" + str(self.env.V_bar) \
                      + "$\qquad$ $\\bar{\\tau} = $" + str(self.env.tau_bar) \
                      + "$\qquad$ $\\bar{\lambda} = $" + str(np.round(self.env.lambda_bar, 2)) \
-                     + "$\qquad$ $t_{\mathrm{wait}}$ = " + str(self.env.wait)
+                     + "$\qquad$ $h_{\mathrm{init}}$ = " + str(self.env.initial_hit)
         sup = plt.figtext(0.5, 0.99, toptext, fontsize=12, ha="center", va="top")
         bot = plt.figtext(0.5, 0.01, bottomtext, fontsize=10, ha="center", va="bottom")
         if self.video_live:

@@ -8,7 +8,6 @@ PERSEUS_PATH = None  # save Perseus policy for POLICY=-2, e.g., "../../perseus/v
 STEPS_AHEAD = 1  # number of anticipated moves, can be > 1 only for POLICY=0
 # Setup
 DRAW_SOURCE = True  # if False, episodes will continue until the source is almost surely found (Bayesian setting)
-TRUE_SOURCE_IS_FIXED_SOURCE = True
 ZERO_HIT = False  # whether to enforce a series of zero hits
 # Visualization
 VISU_MODE = 2  # 0: run without video, 1: create video in the background, 2: create video and show live preview (slower)

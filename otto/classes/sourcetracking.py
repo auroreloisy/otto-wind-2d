@@ -26,14 +26,8 @@ class SourceTracking:
             dimensionless mean wind
         tau_bar (float):
             dimensionless turbulence coherence time
-        max_wait (int):
-            max initial waiting time
         draw_source (bool, optional):
             whether to actually draw the source location (otherwise uses Bayesian framework) (default=False)
-        true_source_is_fixed_source (bool, optional):
-            whether to prescribe the source location (default=False), only relevant if draw_source=True
-        initial_wait (int or None, optional):
-                value of the initial waiting time, if None drawn randomly according to relevant probability distribution (default=None)
         dummy (bool, optional):
                 set automatic parameters but does not initialize the POMDP (default=False)
 
@@ -54,10 +48,8 @@ class SourceTracking:
             norm used for hit detections (default='Euclidean')
         draw_source (bool):
             whether a source location is actually drawn  (otherwise uses Bayesian framework)
-        true_source_is_fixed_source (bool):
-            whether the source location is prescribed, only relevant if draw_source=True
-        initial_wait (int):
-            value of the initial waiting time
+        initial_hit (int):
+            value of the initial hit
         Nactions (int):
             number of possible actions
         NN_input_shape (tuple(int)):
@@ -69,7 +61,7 @@ class SourceTracking:
         obs (dict):
             current observation ("hit" and "done")
         hit_map (ndarray):
-            number of hits received for each location (-1 for cells not visited ye
+            number of hits received for each location (-1 for cells not visited yet)
         cumulative_hits (int):
             cumulated sum of hits received (ignoring initial hit)
         agent_near_boundaries (bool):
@@ -86,9 +78,7 @@ class SourceTracking:
         R_bar=2.5,
         V_bar=2,
         tau_bar=150,
-        max_wait=1000,
         draw_source=False,
-        true_source_is_fixed_source=False,
         dummy=False,
     ):
         self.shape = (81, 41)
@@ -101,7 +91,6 @@ class SourceTracking:
         self.V_bar = V_bar
         self.tau_bar = tau_bar
         self.lambda_bar = np.sqrt((self.tau_bar/self.V_bar**2)/(1 + self.tau_bar / 4))
-        self.max_wait = max_wait
 
         self.norm_Poisson = 'Euclidean'
         if not (self.norm_Poisson in ('Euclidean', 'Manhattan', 'Chebyshev')):
@@ -112,23 +101,10 @@ class SourceTracking:
         #     self.Nactions += 1
 
         self.draw_source = draw_source
-        if true_source_is_fixed_source and not self.draw_source:
-            raise Exception("true source cannot be fixed source if not draw_source!")
-        if self.draw_source:
-            self.true_source_is_fixed_source = true_source_is_fixed_source
-        else:
-            self.true_source_is_fixed_source = False
-        
-        if self.Ndim == 2:
-            self._fixed_source = [10, 20]  # used to generate the initial beliefs
-            if DEBUG:
-                self._fixed_source = [3, 5]
-        else:
-            raise Exception("init implemented in 2D only")
 
         self.NN_input_shape = tuple([2 * n - 1 for n in self.shape])
 
-        self.wait = None
+        self.initial_hit = None
         self.p_source = None
         self.agent = None
         self.hit_map = None
@@ -142,12 +118,23 @@ class SourceTracking:
         if not dummy:
             self.restart()
 
-    def restart(self,):
-        """Restart the search
+    def restart(self):
+        """Restart the search.
         """
-        self.hit_map = -np.ones(self.shape, dtype=int)
+        self.initial_hit = 1
+        if self.initial_hit > self.Nhits - 1:
+            raise Exception("initial_hit cannot be > Nhits - 1")
 
-        self._init_search()  # set p_source, agent
+        self.hit_map = -np.ones(self.shape, dtype=int)
+        if self.Ndim == 2:
+            self.agent = [65, 20]
+            if DEBUG:
+                self.agent = [15, 5]
+        else:
+            raise Exception("Only 2D is implemented")
+        self._init_distributed_source()
+        if self.draw_source:
+            self._draw_a_source()
 
         self.cumulative_hits = 0
         self.agent_near_boundaries = 0
@@ -394,79 +381,21 @@ class SourceTracking:
         # by definition: p_Poisson(origin) = 0
         for h in range(self.Nhits):
             self.p_Poisson[tuple([h] + origin)] = 0.0
-            
+
     # __ INITIALIZATION AND AUTOSET _______________________________________
-    def _init_search(self, ):
-        min_p = 2 * 0.003 * self.R_bar
-        max_p = 2 * 0.01 * self.R_bar
-        if not hasattr(self, 'p_Poisson'):
-            self._compute_p_Poisson()
-        # proba detection
-        origin = [self.shape[axis] - 1 - self._fixed_source[axis] for axis in range(self.Ndim)]
-        p_detection = np.flip(self._extract_N_from_2N(input=self.p_Poisson, origin=tuple(origin))[-1], axis=0)
-        # draw agent
-        p_location = (p_detection >= min_p) * (p_detection <= max_p)  # is within cone
-        p_location = p_location / np.sum(p_location)  # uniform proba within the cone
-        index = np.random.RandomState().choice(np.prod(self.shape), size=1, p=p_location.flatten())[0]  # draw index
-        self.agent = list(np.unravel_index(index, shape=self.shape))
-        # wait until first hit
-        success = False
-        while not success:
-            success = self._init_belief()
-        if self.draw_source:
-            if self.true_source_is_fixed_source:
-                self.source = self._fixed_source
-            else:
-                self._draw_a_source()
-
-    def _init_belief(self):
-        success = False
-
-        # uniform belief
-        self.p_source = np.ones(self.shape) / (np.prod(self.shape) - 1)
-        self.p_source[tuple(self.agent)] = 0.0
-
-        # proba of getting a detection
-        if self.norm_Poisson == 'Manhattan':
-            ord = 1
-        elif self.norm_Poisson == 'Euclidean':
-            ord = 2
-        elif self.norm_Poisson == 'Chebyshev':
-            ord = float("inf")
-        else:
-            raise Exception("This norm is not implemented")
-        d = np.linalg.norm(np.asarray(self.agent) - np.asarray(self._fixed_source), ord=ord)
-        x = self.agent[0] - self._fixed_source[0]
-        mu = self._mean_number_of_hits(d, x)
-        probability = np.zeros(self.Nhits)
-        sum_proba = 0
-        for h in range(self.Nhits - 1):
-            probability[h] = self._Poisson(mu, h)
-            sum_proba += self._Poisson(mu, h)
-        probability[self.Nhits - 1] = np.maximum(0, 1.0 - sum_proba)
-
-        # wait until detection
-        for t in range(1, self.max_wait + 1):
-            # draw hit
-            hit = np.random.RandomState().choice(
-                range(self.Nhits), p=probability
-            )
-            self._update_p_source(hit=hit)
-            if hit == 1:
-                success = True
-                self.wait = t
-                self._update_hit_map(hit=1)
-                break
-
-        if not success:
-            print("Warning: agent did not receive a detection during initial waiting time")
-        return success
-
     def _draw_a_source(self):
         prob = self.p_source.flatten()
         index = np.random.RandomState().choice(np.prod(self.shape), size=1, p=prob)[0]
         self.source = list(np.unravel_index(index, shape=self.shape))
-    
+
+    def _init_distributed_source(self, ):
+        if not hasattr(self, 'p_Poisson'):
+            self._compute_p_Poisson()
+        self.p_source = np.ones(self.shape) / (np.prod(self.shape) - 1)
+        self.p_source[tuple(self.agent)] = 0.0
+        self._update_p_source(hit=self.initial_hit)
+        self._update_hit_map(hit=self.initial_hit)
+
     # __ LOW LEVEL UTILITIES _______________________________________
     def _entropy(self, array, axes=None):
         log2 = np.zeros(array.shape)

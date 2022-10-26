@@ -43,12 +43,10 @@ Parameters of the script are:
     - Setup
         - DRAW_SOURCE (bool)
             if False, episodes will continue until the source is almost surely found (Bayesian setting)
-        - TRUE_SOURCE_IS_FIXED_SOURCE (bool)
-            force the location of the source instead of random draw (relevant only is DRAW_SOURCE = True)
 
     - Policy
         - POLICY (int)
-            - -2: perseus
+            - -3: sarsop
             - -2: perseus
             - -1: neural network
             - 0: infotaxis (Vergassola, Villermaux and Shraiman, Nature 2007)
@@ -223,7 +221,6 @@ def init_envs():
     myenv = env(
         R_bar=R_BAR,
         draw_source=DRAW_SOURCE,
-        true_source_is_fixed_source=TRUE_SOURCE_IS_FIXED_SOURCE,
     )
     if POLICY == -1:
         mymodel = reload_model(MODEL_PATH, inputshape=myenv.NN_input_shape)
@@ -250,7 +247,6 @@ def check_envs(env, pol):
     """Check that the attributes of env and pol match the required parameters."""
     assert env.R_bar == R_BAR
     assert env.draw_source == DRAW_SOURCE
-    assert env.true_source_is_fixed_source == TRUE_SOURCE_IS_FIXED_SOURCE
     
     assert pol.env == env
     assert pol.policy_index == POLICY
@@ -383,8 +379,8 @@ def Worker(episode):
 
         if stop:
             if episode % 100 == 0 and sys.stdout.isatty() and not WITH_MPI:
-                txt = "episode: %7d [wait = %d]  ||  <nsteps>:  %7.2f  ||  total nb of steps:  %d" \
-                      % (episode, myenv.wait, T_mean, t)
+                txt = "episode: %7d [hit(t0) = %d]  ||  <nsteps>:  %7.2f  ||  total nb of steps:  %d" \
+                      % (episode, myenv.initial_hit, T_mean, t)
                 if stop == 1:
                     print(txt)
                 elif stop == 2:
@@ -407,7 +403,7 @@ def Worker(episode):
     monitoring_episode_tmp_file = os.path.join(DIR_TMP, str("monitoring_episode_" + str(episode) + ".txt"))
     with open(monitoring_episode_tmp_file, "a") as mfile:
         mfile.write("%9d\t%8d\t%9d\t%13d\t%11.2e\t%15.4e\t%21.4e\n" % (
-            episode, myenv.wait, stop, near_boundaries, p_not_found_yet, T_mean, episode_elapsed_time))
+            episode, myenv.initial_hit, stop, near_boundaries, p_not_found_yet, T_mean, episode_elapsed_time))
 
     return cdf_t, cdf_h, T_mean, failed
 
@@ -418,7 +414,6 @@ def run():
     mydummyenv = env(
         R_bar=R_BAR,
         draw_source=DRAW_SOURCE,
-        true_source_is_fixed_source=TRUE_SOURCE_IS_FIXED_SOURCE,
         dummy=True,
     )
 
@@ -434,9 +429,7 @@ def run():
         print("NORM_POISSON = " + mydummyenv.norm_Poisson)
         print("GRID = " + str(mydummyenv.shape))
         print("DRAW_SOURCE = " + str(mydummyenv.draw_source))
-        print("TRUE_SOURCE_IS_FIXED_SOURCE = " + str(mydummyenv.true_source_is_fixed_source))
         print("N_HITS = " + str(mydummyenv.Nhits))
-        print("MAX_WAIT = " + str(mydummyenv.max_wait))
         print("POLICY = " + str(POLICY))
         if POLICY == -1:
             print("MODEL_PATH = " + str(MODEL_PATH))
@@ -608,7 +601,6 @@ def run():
         inputs = {
             "R_BAR": R_BAR,
             "DRAW_SOURCE": DRAW_SOURCE,
-            "TRUE_SOURCE_IS_FIXED_SOURCE": TRUE_SOURCE_IS_FIXED_SOURCE,
             "POLICY": POLICY,
             "STEPS_AHEAD": STEPS_AHEAD,
             "MODEL_PATH": MODEL_PATH,
@@ -668,9 +660,6 @@ def run():
                 + ", "
                 + "DRAW_SOURCE = "
                 + str(mydummyenv.draw_source)
-                + ", "
-                + "TRUE_SOURCE_IS_FIXED_SOURCE = "
-                + str(mydummyenv.true_source_is_fixed_source)
                 + ", "
                 + "POLICY = "
                 + str(POLICY)
@@ -793,8 +782,14 @@ def run():
         # summary
         monitoring_file = os.path.join(DIR_OUTPUTS, str(RUN_NAME + "_monitoring_summary" + ".txt"))
         with open(monitoring_file, "w") as mfile:
+            mfile.write("*** initial hit ***\n")
+            first_hit = np.loadtxt(monitoring_episodes_file, usecols=1, dtype='int')
+            hit_max = np.max(first_hit)
+            hit_hist, _ = np.histogram(first_hit, bins=np.arange(0.5, hit_max + 1.5), density=True)
+            for h in range(1, hit_max + 1):
+                mfile.write("hit=%1d: %6.2f %% \n" % (h, hit_hist[h - 1] * 100))
 
-            mfile.write("*** stats convergence ***\n")
+            mfile.write("\n*** stats convergence ***\n")
             mfile.write("number of episodes simulated         : %d\n" % N_runs)
             mfile.write("standard error of the mean (estimate): %.4e = %5.2f %%\n"
                         % (std_error_mean, rel_std_error_mean * 100))
@@ -831,13 +826,6 @@ def run():
             mfile.write("N_PARALLEL = %d\n" % N_PARALLEL)
             mfile.write("total elapsed hours                            : %.5e\n" % elapsed_time_0)
             mfile.write("cost in hours = total elapsed time * N_PARALLEL: %.5e\n" % (elapsed_time_0 * N_PARALLEL))
-
-            mfile.write("\n*** initial wait ***\n")
-            wait = np.loadtxt(monitoring_episodes_file, usecols=1, dtype='int')
-            wait_max = np.max(wait)
-            wait_hist, _ = np.histogram(wait, bins=np.arange(0.5, wait_max + 1.5), density=True)
-            for h in range(1, wait_max + 1):
-                mfile.write("wait=%1d: %6.2f %% \n" % (h, wait_hist[h - 1] * 100))
 
         print(">>> Results saved in the directory: " + DIR_OUTPUTS)
 

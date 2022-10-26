@@ -39,8 +39,6 @@ Parameters of the script are:
     - Setup
         - DRAW_SOURCE (bool)
             if False, episodes will continue until the source is almost surely found (Bayesian setting)
-        - TRUE_SOURCE_IS_FIXED_SOURCE (bool)
-            force the location of the source instead of random draw (relevant only is DRAW_SOURCE = True)
         - ZERO_HIT (bool)
             whether to enforce a series of zero hits
 
@@ -132,7 +130,6 @@ def run():
     myenv = env(
         R_bar=R_BAR,
         draw_source=DRAW_SOURCE,
-        true_source_is_fixed_source=TRUE_SOURCE_IS_FIXED_SOURCE,
     )
     print("R_BAR = " + str(myenv.R_bar))
     print("V_BAR = " + str(myenv.V_bar))
@@ -141,10 +138,7 @@ def run():
     print("NORM_POISSON = " + myenv.norm_Poisson)
     print("GRID = " + str(myenv.shape))
     print("DRAW_SOURCE = " + str(myenv.draw_source))
-    print("TRUE_SOURCE_IS_FIXED_SOURCE = " + str(myenv.true_source_is_fixed_source))
     print("N_HITS = " + str(myenv.Nhits))
-    print("MAX_WAIT = " + str(myenv.max_wait))
-    print("WAIT = " + str(myenv.wait))
 
     if POLICY == -1:
         mymodel = reload_model(MODEL_PATH, inputshape=myenv.NN_input_shape)
