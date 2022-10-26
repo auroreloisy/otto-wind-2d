@@ -140,4 +140,4 @@ otto/learn/outputs/*
 otto/evaluate/tmp/*
 otto/learn/models/*
 perseus/*.pkl
-
+sarsop/*.pkl

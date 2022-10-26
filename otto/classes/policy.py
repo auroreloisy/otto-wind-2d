@@ -8,9 +8,7 @@ def policy_name(policy_index):
     if policy_index == -1:
         name = "NN"
     elif policy_index == -2:
-        name = "Perseus"
-    elif policy_index == -3:
-        name = "Sarsop"
+        name = "AlphaVec"
     elif policy_index == 0:
         name = "infotaxis"
     elif policy_index == 1:
@@ -38,8 +36,7 @@ class Policy:
 
         Args:
             policy (int):
-                    - -3: sarsop
-                    - -2: perseus
+                    - -2: alphavec (perseus or sarsop)
                     - -1: neural network
                     - 0: infotaxis (Vergassola, Villermaux and Shraiman, Nature 2007)
                     - 1: space-aware infotaxis

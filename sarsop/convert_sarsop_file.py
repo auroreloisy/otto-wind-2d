@@ -1,26 +1,26 @@
-"""Load Perseus policy, extract useful data and save it."""
+"""Load Sarsop policy, extract useful data and save it."""
 import numpy as np
 import pickle
 
-FILENAME = "vf_rate_5.0_gamma_0.98_ic2_it_21_shaping_factor_0.1_shaping_power_1.0_nb_45000_epsilon_0.0_v2.pkl"
+FILENAME = "sarsop_policy_windy_unshaped.pkl"
 INPUT_FILENAME = "/home/aurore/Downloads/" + FILENAME
 OUTPUT_FILENAME = "./" + FILENAME
 OUTPUT = {
-    "solver": "Perseus",
+    "solver": "Sarsop",
     "alphas": None,
     "actions": None,
-    "discount": 0.98,
-    "shaping": "D",
-    "shaping_coef": 0.1,
+    "discount": "?",
+    "shaping": "0",
+    "shaping_coef": '',
 }
 
 
 def convert(input_filename, output):
     with open(input_filename, 'rb') as f:
-        vf = pickle.load(f)
+        alphavecs = pickle.load(f)  # list of alpha_vec
     output["alphas"] = []
     output["actions"] = []
-    for alphavec in vf.alphas:
+    for alphavec in alphavecs:
         output["alphas"].append(alphavec.data)
         if np.array_equal(alphavec.action, [1, 0]):
             action = 1

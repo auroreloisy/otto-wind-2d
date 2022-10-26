@@ -46,8 +46,7 @@ Parameters of the script are:
 
     - Policy
         - POLICY (int)
-            - -3: sarsop
-            - -2: perseus
+            - -2: alphavec (perseus or sarsop)
             - -1: neural network
             - 0: infotaxis (Vergassola, Villermaux and Shraiman, Nature 2007)
             - 1: space-aware infotaxis
@@ -61,8 +60,8 @@ Parameters of the script are:
             number of anticipated moves, can be > 1 only for POLICY=0
         - MODEL_PATH (str or None)
             path of the model (neural network) for POLICY=-1, None otherwise
-        - PERSEUS_PATH (str or None)
-            path of the perseus policy (alpha vectors) for POLICY=-2, None otherwise
+        - ALPHAVEC_PATH (str or None)
+            path of the perseus or sarsop policy (alpha vectors) for POLICY=-2, None otherwise
 
     - Criteria for episode termination
         - STOP_t (int > 0 or None)
@@ -139,8 +138,8 @@ if MODEL_PATH is not None and POLICY != -1:
                     "If you want to use the model, you must set POLICY = -1. "
                     "If you want a different policy, set MODEL_PATH = None.")
 
-if PERSEUS_PATH is not None and POLICY != -2:
-    raise Exception("Models (set by PERSEUS_PATH) can only be used with POLICY = -2 (Perseus policy). ")
+if ALPHAVEC_PATH is not None and POLICY != -2:
+    raise Exception("Models (set by ALPHAVEC_PATH) can only be used with POLICY = -2 (Perseus/Sarsop policy). ")
 
 if POLICY == -1:
     from otto.classes.rlpolicy import RLPolicy
@@ -148,9 +147,9 @@ if POLICY == -1:
     if MODEL_PATH is None:
         raise Exception("MODEL_PATH cannot be None with a neural network policy!")
 elif POLICY == -2:
-    from otto.classes.perseuspolicy import PerseusPolicy
-    if PERSEUS_PATH is None:
-        raise Exception("PERSEUS_PATH cannot be None with a Perseus policy!")
+    from otto.classes.alphavecpolicy import AlphaVecPolicy
+    if ALPHAVEC_PATH is None:
+        raise Exception("ALPHAVEC_PATH cannot be None with an alphavec (Perseus/Sarsop) policy!")
 else:
     from otto.classes.heuristicpolicy import HeuristicPolicy
 
@@ -229,9 +228,9 @@ def init_envs():
             model=mymodel,
         )
     elif POLICY == -2:
-        mypol = PerseusPolicy(
+        mypol = AlphaVecPolicy(
             env=myenv,
-            filepath=PERSEUS_PATH,
+            filepath=ALPHAVEC_PATH,
             parallel=True,
         )
     else:
@@ -434,7 +433,7 @@ def run():
         if POLICY == -1:
             print("MODEL_PATH = " + str(MODEL_PATH))
         elif POLICY == -2:
-            print("PERSEUS_PATH = " + str(PERSEUS_PATH))
+            print("ALPHAVEC_PATH = " + str(ALPHAVEC_PATH))
         else:
             print("STEPS_AHEAD = " + str(STEPS_AHEAD))
         print("EPSILON = " + str(EPSILON))
@@ -650,7 +649,7 @@ def run():
         if POLICY == -1:
             specifics = "MODEL = " + os.path.basename(MODEL_PATH)
         elif POLICY == -2:
-            specifics = "PERSEUS = " + os.path.basename(PERSEUS_PATH)
+            specifics = "ALPHAVEC = " + os.path.basename(ALPHAVEC_PATH)
         else:
             specifics = "STEPS_AHEAD = " + str(STEPS_AHEAD)
 
