@@ -123,10 +123,13 @@ class AlphaVecPolicy(Policy):
         self.shaping = alphavec["shaping"]
         self.shaping_coef = alphavec["shaping_coef"]
 
-        self.policy_name = self.solver + \
+        self.policy_name = self.solver
+
+        self.policy_long_name = self.solver + \
                            " (discount=" + str(self.discount) + \
                            ", shaping=" + str(self.shaping_coef) + self.shaping + \
-                           ", alphas=" + str(len(self.vf.alphas)) + ")"
+                           ", alphas=" + str(len(self.vf.alphas)) + \
+                           ", n_weights=" + str(np.prod(self.vf.alpha_array.shape)) + ")"
 
     def _choose_action(self, ):
 

@@ -155,7 +155,7 @@ def run():
             filepath=ALPHAVEC_PATH,
             parallel=True,
         )
-        print("POLICY = -2 (" + mypol.policy_name + ")")
+        print("POLICY = -2 (" + mypol.policy_long_name + ")")
         print("ALPHAVEC_PATH =", ALPHAVEC_PATH)
     else:
         mypol = HeuristicPolicy(
