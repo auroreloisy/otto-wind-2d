@@ -1,5 +1,8 @@
 
-# OTTO
+# OTTO (testing)
+
+This is a variant of [OTTO](https://github.com/C0PEP0D/otto), only for testing purposes (2D setup with wind). 
+It will be merged into OTTO in a near future.
 
 ## Installation
 

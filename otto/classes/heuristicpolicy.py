@@ -96,6 +96,10 @@ class HeuristicPolicy(Policy):
             assert policy_name(self.policy_index) == "custom policy"
             action_chosen, _ = self._custom_policy()
 
+        elif self.policy_index == 4:
+            assert policy_name(self.policy_index) == "p-over-d"
+            action_chosen, _ = self._p_over_d_policy()
+
         elif self.policy_index == 5:
             assert policy_name(self.policy_index) == "random walk"
             action_chosen = random.randint(0, self.env.Nactions - 1)
@@ -475,6 +479,45 @@ class HeuristicPolicy(Policy):
         # action_chosen = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()[0]
         action_chosen = np.argmin(to_minimize)
 
+        return action_chosen, to_minimize
+
+    def _init_p_over_d_policy(self, ):
+        shape = tuple([2 * n + 1 for n in self.env.shape])
+        origin = self.env.shape
+        self.distance_array = self.env._distance(shape, origin=origin, norm="Manhattan")
+
+    def _p_over_d_policy(self, ):
+        """A simple yet effective reactive policy developed by Manuel Maeritz and Luka Negrojevic."""
+        if not hasattr(self, 'distance_array'):
+            self._init_p_over_d_policy()
+
+        to_minimize = np.ones(self.env.Nactions)*float('inf')
+        p_found = np.zeros(self.env.Nactions)
+
+        # distance array
+        d = self.env._extract_N_from_2N(input=self.distance_array, origin=self.env.agent)
+        d[d == 0] = np.inf
+
+        # most likely source location, replacing p by p/d
+        most_likely_source = np.unravel_index(np.argmax(self.env.p_source/d, axis=None), self.env.p_source.shape)
+
+        for a in range(self.env.Nactions):
+            # moving agent
+            agent_, move_possible = self.env._move(a, self.env.agent)
+            if move_possible:
+                # Manhattan distance between agent and source
+                to_minimize[a] = np.linalg.norm(np.asarray(agent_) - np.asarray(most_likely_source), ord=1)
+                # prob to found the source upon moving
+                p_found[a] = self.env.p_source[tuple(agent_)]
+        best_actions = np.argwhere(np.abs(to_minimize - np.min(to_minimize)) < EPSILON_CHOICE).flatten()
+        if len(best_actions) > 1:
+            best_p_found = -EPSILON
+            for a in best_actions:
+                if p_found[a] > best_p_found:
+                    best_p_found = p_found[a]
+                    action_chosen = a
+        else:
+            action_chosen = best_actions[0]
         return action_chosen, to_minimize
 
     def _custom_policy(self, ):
