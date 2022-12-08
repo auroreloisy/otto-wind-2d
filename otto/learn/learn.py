@@ -214,8 +214,12 @@ np.set_printoptions(precision=4)
 # Build and compile model ________________________________________________________________
 def build_new_model(
         Ndim,
-        FC_layers,
-        FC_units,
+        conv_layers,
+        conv_filters,
+        conv_sizes,
+        pool_sizes,
+        fc_layers,
+        fc_units,
         discount,
         shaping,
         learning_rate,
@@ -225,8 +229,12 @@ def build_new_model(
 
     Args:
         Ndim (int): number of space dimensions for the search problem
-        FC_layers (int): number of hidden layers
-        FC_units (int or tuple): units per layer
+        conv_layers (int): number of conv layers
+        conv_filters (tuple(int)): number of filters for each conv layer
+        conv_sizes (tuple(int)): size of the conv kernel for each conv layer
+        pool_sizes (tuple(int)): size of the max pool for each conv layer
+        fc_layers (int): number of hidden fc layers
+        fc_units (int or tuple): units per fc layer
         learning_rate: usual learning rate
 
     Returns:
@@ -236,8 +244,12 @@ def build_new_model(
     # Instantiate a new model
     model = ValueModel(
         Ndim=Ndim,
-        FC_layers=FC_layers,
-        FC_units=FC_units,
+        conv_layers=conv_layers,
+        conv_filters=conv_filters,
+        conv_sizes=conv_sizes,
+        pool_sizes=pool_sizes,
+        fc_layers=fc_layers,
+        fc_units=fc_units,
         discount=discount,
         shaping=shaping,
     )
@@ -304,6 +316,10 @@ def save_parameters(env, model):
         print("DDQN = " + str(DDQN), file=out)
 
         print("* NN architecture", file=out)
+        print("CONV_LAYERS = " + str(CONV_LAYERS), file=out)
+        print("CONV_FILTERS = " + str(CONV_FILTERS), file=out)
+        print("CONV_SIZES = " + str(CONV_SIZES), file=out)
+        print("POOL_SIZES = " + str(POOL_SIZES), file=out)
         print("FC_LAYERS = " + str(FC_LAYERS), file=out)
         print("FC_UNITS = " + str(FC_UNITS), file=out)
         Nweights = np.sum([np.prod(w.shape) for w in model.get_weights()])
@@ -339,7 +355,19 @@ def param2subtitle(env, model):
     """Create of string summarizing all parameters (useful as a subtitle in plots)."""
     Nweights = np.sum([np.prod(w.shape) for w in model.get_weights()])
 
-    arch = ("FC_LAYERS="
+    arch = ("CONV_LAYERS="
+            + str(CONV_LAYERS)
+            + "    "
+            + "CONV_FILTERS="
+            + str(CONV_FILTERS)
+            + "    "
+            + "CONV_SIZES="
+            + str(CONV_SIZES)
+            + "    "
+            + "POOL_SIZES="
+            + str(POOL_SIZES)
+            + "    "
+            + "FC_LAYERS="
             + str(FC_LAYERS)
             + "    "
             + "FC_UNITS="
@@ -1200,16 +1228,24 @@ if __name__ == '__main__':
     print("\n*** Building model...")
     MYMODEL = build_new_model(
             Ndim=MY_TRAINING_ENV.Ndim,
-            FC_layers=FC_LAYERS,
-            FC_units=FC_UNITS,
+            conv_layers=CONV_LAYERS,
+            conv_filters=CONV_FILTERS,
+            conv_sizes=CONV_SIZES,
+            pool_sizes=POOL_SIZES,
+            fc_layers=FC_LAYERS,
+            fc_units=FC_UNITS,
             discount=DISCOUNT,
             shaping=REWARD_SHAPING,
             learning_rate=LEARNING_RATE,
         )
     MYFROZENMODEL = build_new_model(
             Ndim=MY_TRAINING_ENV.Ndim,
-            FC_layers=FC_LAYERS,
-            FC_units=FC_UNITS,
+            conv_layers=CONV_LAYERS,
+            conv_filters=CONV_FILTERS,
+            conv_sizes=CONV_SIZES,
+            pool_sizes=POOL_SIZES,
+            fc_layers=FC_LAYERS,
+            fc_units=FC_UNITS,
             discount=DISCOUNT,
             shaping=REWARD_SHAPING,
             learning_rate=LEARNING_RATE,

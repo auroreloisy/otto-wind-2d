@@ -41,9 +41,17 @@ class ValueModel(Model):
     Args:
         Ndim (int):
             number of space dimensions (1D, 2D, ...) for the search problem
-        FC_layers (int):
+        conv_layers (int):
+            number of conv layers
+        conv_filters (tuple(int)):
+            number of filters for each conv layer
+        conv_sizes (tuple(int)):
+            size of the conv kernel for each conv layer
+        pool_sizes (tuple(int)):
+            size of the max pool for each conv layer
+        fc_layers (int):
             number of hidden layers
-        FC_units (int or tuple(int)):
+        fc_units (int or tuple(int)):
             units per layer
         regularization_factor (float, optional):
             factor for regularization losses (default=0.0)
@@ -62,8 +70,12 @@ class ValueModel(Model):
 
     def __init__(self,
                  Ndim,
-                 FC_layers,
-                 FC_units,
+                 conv_layers=0,
+                 conv_filters=0,
+                 conv_sizes=None,
+                 pool_sizes=None,
+                 fc_layers=3,
+                 fc_units=128,
                  regularization_factor=0.0,
                  loss_function='mean_squared_error',
                  discount=1.0,
@@ -75,8 +87,12 @@ class ValueModel(Model):
         """
         super(ValueModel, self).__init__()
         self.config = {"Ndim": Ndim,
-                       "FC_layers": FC_layers,
-                       "FC_units": FC_units,
+                       "conv_layers": conv_layers,
+                       "conv_filters": conv_filters,
+                       "conv_sizes": conv_sizes,
+                       "pool_sizes": pool_sizes,
+                       "fc_layers": fc_layers,
+                       "fc_units": fc_units,
                        "regularization_factor": regularization_factor,
                        "loss_function": loss_function,
                        "discount": discount,
@@ -99,25 +115,55 @@ class ValueModel(Model):
         self.discount = discount
         self.shaping = shaping
 
+        # Convolutional layers
+        self.conv_block = None
+        if conv_layers > 0:
+            conv_convpad = 'valid'
+            conv_poolpad = 'valid'
+            if len(conv_sizes) != conv_layers or len(conv_filters) != conv_layers or len(
+                    pool_sizes) != conv_layers:
+                raise Exception("Must provide 1 convsize/filter/poolsize per CV layer")
+            if conv_convpad not in ('valid', 'same'):
+                raise Exception("This padding is not allowed for conv")
+            if conv_poolpad not in ('valid', 'same'):
+                raise Exception("This padding is not allowed for pool")
+
+            self.conv_block = []
+            for i in range(conv_layers):
+                conv_ = layers.Conv2D(
+                    filters=conv_filters[i],
+                    kernel_size=conv_sizes[i],
+                    padding=conv_convpad,
+                    activation='relu',
+                    activity_regularizer=regularizer,
+                )
+                self.conv_block.append(conv_)
+                if pool_sizes[i] > 1:
+                    pool_ = layers.MaxPooling2D(
+                        pool_size=pool_sizes[i],
+                        padding=conv_poolpad,
+                    )
+                    self.conv_block.append(pool_)
+
         # flattening
         self.flatten = layers.Flatten()
 
         # fully connected layers
-        self.FC_block = None
-        if FC_layers > 0:
-            if isinstance(FC_units, int):
-                FC_units = tuple([FC_units] * FC_layers)
-            if len(FC_units) != FC_layers:
+        self.fc_block = None
+        if fc_layers > 0:
+            if isinstance(fc_units, int):
+                fc_units = tuple([fc_units] * fc_layers)
+            if len(fc_units) != fc_layers:
                 raise Exception("Must provide nb of units for each dense layer or provide a single int")
-            self.FC_block = []
-            for i in range(FC_layers):
+            self.fc_block = []
+            for i in range(fc_layers):
                 dense_ = layers.Dense(
-                    units=FC_units[i],
+                    units=fc_units[i],
                     activation='relu',
                     kernel_initializer=tf.keras.initializers.HeUniform(),
                     activity_regularizer=regularizer,
                 )
-                self.FC_block.append(dense_)
+                self.fc_block.append(dense_)
 
         # last linear layer
         self.densefinal = layers.Dense(
@@ -159,13 +205,19 @@ class ValueModel(Model):
             else:
                 raise Exception("symmetric duplicates for Ndim != 2 is not implemented")
 
+        # CV pass
+        if self.conv_block is not None:
+            x = x[..., tf.newaxis]  # adding the channel dim
+            for i in range(len(self.conv_block)):
+                x = self.conv_block[i](x, training=training)
+
         # flatten input
         x = self.flatten(x)
 
-        # forward pass
-        if self.FC_block is not None:
-            for i in range(len(self.FC_block)):
-                x = self.FC_block[i](x, training=training)
+        # fc pass
+        if self.fc_block is not None:
+            for i in range(len(self.fc_block)):
+                x = self.fc_block[i](x, training=training)
 
         x = self.densefinal(x)
 

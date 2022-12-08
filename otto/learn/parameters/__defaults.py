@@ -10,8 +10,12 @@ DISCOUNT = 1.0
 # Reward shaping
 REWARD_SHAPING = "0"
 # Neural network (NN) architecture
-FC_LAYERS = 3  # number of hidden layers
-FC_UNITS = 1024  # number of units per layers
+CONV_LAYERS = 0  # number of conv layers
+CONV_FILTERS = (16, 32, 64)  # number of filters, for each conv layer
+CONV_SIZES = (3, 3, 3)  # size of the filter, for each conv layer
+POOL_SIZES = (2, 2, 1)  # size of the pooling (done after conv), for each conv layer
+FC_LAYERS = 3  # number of hidden fc layers
+FC_UNITS = 1024  # number of units per fc layers
 # Experience replay
 MEMORY_SIZE = 500  # number of transitions (s, s') to keep in memory
 # Exploration: eps is the probability of taking a random action when executing the policy
