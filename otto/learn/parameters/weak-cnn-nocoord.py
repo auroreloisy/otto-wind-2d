@@ -26,7 +26,7 @@ E_GREEDY_DECAY = 50000   # timescale for eps decay, in number of training iterat
 EVALUATE_PERFORMANCE_EVERY = 5000  # how often is the RL policy evaluated, in number of training iterations
 # Evaluation of the RL policy
 POLICY_REF = 0  # heuristic policy to use for comparison
-N_RUNS_STATS = 1 # 500  # number of episodes used to compute the stats of a policy, set automatically if None
+N_RUNS_STATS = 500  # number of episodes used to compute the stats of a policy, set automatically if None
 # Restart from saved model, if None start from scratch
 MODEL_PATH = None  # path to saved model, e.g., "./models/20220201-230054/20220201-230054_model"
 # Parallelization: how many episodes are computed in parallel (how many cores are used)
