@@ -69,11 +69,21 @@ Parameters of the script are:
             - REWARD_SHAPING (str)
                 reward shaping
 
-        Neural network architecture (fully connected)
+        Neural network architecture
+            - CONV_LAYERS (int)
+                number of convolutional layers
+            - CONV_COORD (bool)
+                whether to add coordinates to input (if CONV_LAYERS > 0)
+            - CONV_FILTERS (tuple(int > 0))
+                number of filters, for each convolutional layer
+            - CONV_SIZES (tuple(int > 0))
+                size of the filter, for each convolutional layer
+            - POOL_SIZES (tuple(int > 0))
+                size of the max pooling (done after convolution), for each convolutional layer
             - FC_LAYERS (int > 0)
-                number of hidden layers
+                number of hidden fully connected layers
             - FC_UNITS (int > 0 or tuple(int > 0))
-                number of units per layers
+                number of units, for each fully connected layers
 
         Stochastic gradient descent
             - BATCH_SIZE (int > 0)
@@ -213,8 +223,9 @@ np.set_printoptions(precision=4)
 
 # Build and compile model ________________________________________________________________
 def build_new_model(
-        Ndim,
+        ndim,
         conv_layers,
+        conv_coord,
         conv_filters,
         conv_sizes,
         pool_sizes,
@@ -228,8 +239,9 @@ def build_new_model(
     Creates and compiles the model.
 
     Args:
-        Ndim (int): number of space dimensions for the search problem
+        ndim (int): number of space dimensions for the search problem
         conv_layers (int): number of conv layers
+        conv_coord (bool): whether to add coordinates to input
         conv_filters (tuple(int)): number of filters for each conv layer
         conv_sizes (tuple(int)): size of the conv kernel for each conv layer
         pool_sizes (tuple(int)): size of the max pool for each conv layer
@@ -240,11 +252,23 @@ def build_new_model(
     Returns:
         model (ValueModel): instance of the neural network model
     """
+    assert ndim == len(MY_TRAINING_ENV.NN_input_shape)
+
+    # Compute coordinates, if needed
+    if conv_coord:
+        input_shape = MY_TRAINING_ENV.NN_input_shape
+        origin = [n // 2 for n in input_shape]
+        coord = np.mgrid[tuple([range(n) for n in input_shape])]
+        for i in range(ndim):
+            coord[i] -= origin[i]
+    else:
+        coord = None
 
     # Instantiate a new model
     model = ValueModel(
-        Ndim=Ndim,
+        ndim=ndim,
         conv_layers=conv_layers,
+        conv_coord=coord,
         conv_filters=conv_filters,
         conv_sizes=conv_sizes,
         pool_sizes=pool_sizes,
@@ -317,6 +341,7 @@ def save_parameters(env, model):
 
         print("* NN architecture", file=out)
         print("CONV_LAYERS = " + str(CONV_LAYERS), file=out)
+        print("CONV_COORD = " + str(CONV_COORD), file=out)
         print("CONV_FILTERS = " + str(CONV_FILTERS), file=out)
         print("CONV_SIZES = " + str(CONV_SIZES), file=out)
         print("POOL_SIZES = " + str(POOL_SIZES), file=out)
@@ -357,6 +382,9 @@ def param2subtitle(env, model):
 
     arch = ("CONV_LAYERS="
             + str(CONV_LAYERS)
+            + "    "
+            + "CONV_COORD="
+            + str(CONV_COORD)
             + "    "
             + "CONV_FILTERS="
             + str(CONV_FILTERS)
@@ -1210,7 +1238,7 @@ if __name__ == '__main__':
 
     print("\n*** Autoset params...")
     STOP_t, N_RUNS_STATS = autoset_numerical_parameters()
-    print("N_RUNS_STATS =", N_RUNS_STATS, " MEMORY_SIZE =", MEMORY_SIZE)
+    # print("N_RUNS_STATS =", N_RUNS_STATS, " STOP_t =", STOP_t)
 
     NEW_TRANS_PER_IT = int(BATCH_SIZE * N_GD_STEPS / REPLAY_NTIMES)
     if NEW_TRANS_PER_IT > 0.8 * MEMORY_SIZE:
@@ -1227,8 +1255,9 @@ if __name__ == '__main__':
     # Model initialization
     print("\n*** Building model...")
     MYMODEL = build_new_model(
-            Ndim=MY_TRAINING_ENV.Ndim,
+            ndim=MY_TRAINING_ENV.Ndim,
             conv_layers=CONV_LAYERS,
+            conv_coord=CONV_COORD,
             conv_filters=CONV_FILTERS,
             conv_sizes=CONV_SIZES,
             pool_sizes=POOL_SIZES,
@@ -1239,8 +1268,9 @@ if __name__ == '__main__':
             learning_rate=LEARNING_RATE,
         )
     MYFROZENMODEL = build_new_model(
-            Ndim=MY_TRAINING_ENV.Ndim,
+            ndim=MY_TRAINING_ENV.Ndim,
             conv_layers=CONV_LAYERS,
+            conv_coord=CONV_COORD,
             conv_filters=CONV_FILTERS,
             conv_sizes=CONV_SIZES,
             pool_sizes=POOL_SIZES,

@@ -10,12 +10,13 @@ DISCOUNT = 1.0
 # Reward shaping
 REWARD_SHAPING = "0"
 # Neural network (NN) architecture
-CONV_LAYERS = 0  # number of conv layers
-CONV_FILTERS = (16, 32, 64)  # number of filters, for each conv layer
-CONV_SIZES = (3, 3, 3)  # size of the filter, for each conv layer
-POOL_SIZES = (2, 2, 1)  # size of the pooling (done after conv), for each conv layer
-FC_LAYERS = 3  # number of hidden fc layers
-FC_UNITS = 1024  # number of units per fc layers
+CONV_LAYERS = 0  # number of convolutional layers
+CONV_COORD = False  # whether to add coordinates to input (if CONV_LAYERS > 0)
+CONV_FILTERS = (8, 16, 32)  # number of filters, for each convolutional layer
+CONV_SIZES = (3, 3, 3)  # size of the filter, for each convolutional layer
+POOL_SIZES = (2, 2, 2)  # size of the max pooling (done after convolution), for each convolutional layer
+FC_LAYERS = 3  # number of hidden fully connected layers
+FC_UNITS = (1024, 1024, 1024)  # number of units, for each fully connected layers
 # Experience replay
 MEMORY_SIZE = 500  # number of transitions (s, s') to keep in memory
 # Exploration: eps is the probability of taking a random action when executing the policy

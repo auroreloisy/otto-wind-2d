@@ -6,12 +6,13 @@ DISCOUNT = 1.0
 # Reward shaping
 REWARD_SHAPING = "0"
 # Neural network (NN) architecture
-CONV_LAYERS = 3  # number of conv layers
-CONV_FILTERS = (8, 16, 32)  # number of filters, for each conv layer
-CONV_SIZES = (3, 3, 3)  # size of the filter, for each conv layer
-POOL_SIZES = (2, 2, 2)  # size of the max pooling (done after conv), for each conv layer
-FC_LAYERS = 1  # number of hidden layers
-FC_UNITS = (1024, )  # number of units per layers
+CONV_LAYERS = 3  # number of convolutional layers
+CONV_COORD = False  # whether to add coordinates to input (if CONV_LAYERS > 0)
+CONV_FILTERS = (8, 16, 32)  # number of filters, for each convolutional layer
+CONV_SIZES = (3, 3, 3)  # size of the filter, for each convolutional layer
+POOL_SIZES = (2, 2, 2)  # size of the max pooling (done after convolution), for each convolutional layer
+FC_LAYERS = 1  # number of hidden fully connected layers
+FC_UNITS = (1024, )  # number of units, for each fully connected layers
 # Experience replay
 MEMORY_SIZE = 1000  # number of transitions (s, s') to keep in memory
 REPLAY_NTIMES = 2 # how many times a transition is used for training before being deleted, on average
@@ -25,7 +26,7 @@ E_GREEDY_DECAY = 20000   # timescale for eps decay, in number of training iterat
 EVALUATE_PERFORMANCE_EVERY = 5000  # how often is the RL policy evaluated, in number of training iterations
 # Evaluation of the RL policy
 POLICY_REF = 0  # heuristic policy to use for comparison
-N_RUNS_STATS = 500  # number of episodes used to compute the stats of a policy, set automatically if None
+N_RUNS_STATS = 1 # 500  # number of episodes used to compute the stats of a policy, set automatically if None
 # Restart from saved model, if None start from scratch
 MODEL_PATH = None  # path to saved model, e.g., "./models/20220201-230054/20220201-230054_model"
 # Parallelization: how many episodes are computed in parallel (how many cores are used)

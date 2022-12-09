@@ -4,6 +4,7 @@
 
 import os
 import pickle
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras import Model
@@ -28,6 +29,13 @@ def reload_model(model_dir, inputshape):
         config["discount"] = 1.0
     if "shaping" not in config:
         config["shaping"] = "0"
+    if "conv_layer" not in config:
+        config["conv_layers"] = 0
+        config["conv_coord"] = None
+        config["conv_filters"] = 0
+        config["conv_sizes"] = 0
+        config["pool_sizes"] = 0
+    config = {k.lower(): v for k, v in config.items()}  # for retrocompatibility
     model = ValueModel(**config)
     model.build_graph(input_shape_nobatch=inputshape)
     model.load_weights(weights_path)
@@ -39,10 +47,12 @@ class ValueModel(Model):
     (i.e. the expected remaining time to find the source).
 
     Args:
-        Ndim (int):
+        ndim (int):
             number of space dimensions (1D, 2D, ...) for the search problem
         conv_layers (int):
             number of conv layers
+        conv_coord (np.array or None):
+            meshgrid of coordinates to add as extra channels, or None for not adding coordinates
         conv_filters (tuple(int)):
             number of filters for each conv layer
         conv_sizes (tuple(int)):
@@ -69,13 +79,14 @@ class ValueModel(Model):
     """
 
     def __init__(self,
-                 Ndim,
-                 conv_layers=0,
-                 conv_filters=0,
-                 conv_sizes=None,
-                 pool_sizes=None,
-                 fc_layers=3,
-                 fc_units=128,
+                 ndim,
+                 conv_layers,
+                 conv_coord,
+                 conv_filters,
+                 conv_sizes,
+                 pool_sizes,
+                 fc_layers,
+                 fc_units,
                  regularization_factor=0.0,
                  loss_function='mean_squared_error',
                  discount=1.0,
@@ -86,8 +97,9 @@ class ValueModel(Model):
 
         """
         super(ValueModel, self).__init__()
-        self.config = {"Ndim": Ndim,
+        self.config = {"ndim": ndim,
                        "conv_layers": conv_layers,
+                       "conv_coord": conv_coord,
                        "conv_filters": conv_filters,
                        "conv_sizes": conv_sizes,
                        "pool_sizes": pool_sizes,
@@ -99,7 +111,7 @@ class ValueModel(Model):
                        "shaping": shaping,
                        }
 
-        self.Ndim = Ndim
+        self.ndim = ndim
 
         if loss_function == 'mean_absolute_error':
             self.loss_function = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
@@ -118,6 +130,10 @@ class ValueModel(Model):
         # Convolutional layers
         self.conv_block = None
         if conv_layers > 0:
+            if conv_coord is not None:
+                self.conv_coord = np.array(conv_coord, dtype=np.float32)
+            else:
+                self.conv_coord = None
             conv_convpad = 'valid'
             conv_poolpad = 'valid'
             if len(conv_sizes) != conv_layers or len(conv_filters) != conv_layers or len(
@@ -196,25 +212,33 @@ class ValueModel(Model):
 
         # create symmetric duplicates
         if ensemble_sym_avg:
-            if self.Ndim == 2:
+            if self.ndim == 2:
                 Nsym = 2
                 x = x[tf.newaxis, ...]
                 _ = tf.reverse(x, axis=[3])  # symmetry: y -> -y
                 x = tf.concat([x, _], axis=0)
                 x = tf.reshape(x, shape=tuple([Nsym * shape[0]] + list(shape[1:])))
             else:
-                raise Exception("symmetric duplicates for Ndim != 2 is not implemented")
+                raise Exception("symmetric duplicates for ndim != 2 is not implemented")
 
-        # CV pass
+        # convolutions
         if self.conv_block is not None:
             x = x[..., tf.newaxis]  # adding the channel dim
+            batchdim_size = x.shape[0]
+            if self.conv_coord is not None:  # adding coordinates as channels
+                for coord in self.conv_coord:
+                    batch_coord = coord[tf.newaxis, ...]
+                    if batchdim_size is not None:
+                        batch_coord = tf.repeat(batch_coord, batchdim_size, axis=0)
+                    batch_coord = batch_coord[..., tf.newaxis]
+                    x = tf.concat([x, batch_coord], axis=-1)
             for i in range(len(self.conv_block)):
                 x = self.conv_block[i](x, training=training)
 
         # flatten input
         x = self.flatten(x)
 
-        # fc pass
+        # fully connected
         if self.fc_block is not None:
             for i in range(len(self.fc_block)):
                 x = self.fc_block[i](x, training=training)
@@ -258,14 +282,14 @@ class ValueModel(Model):
         # Add symmetric duplicates
         if augment:
             shape = x.shape
-            if self.Ndim == 2:
+            if self.ndim == 2:
                 Nsym = 2
                 x = x[tf.newaxis, ...]
                 _ = tf.reverse(x, axis=[3])  # symmetry: y -> -y
                 x = tf.concat([x, _], axis=0)
                 x = tf.reshape(x, shape=tuple([Nsym * shape[0]] + list(shape[1:])))
             else:
-                raise Exception("augmentation with symmetric duplicates is not implemented for Ndim != 2")
+                raise Exception("augmentation with symmetric duplicates is not implemented for ndim != 2")
 
             # repeat target
             y = y[tf.newaxis, ...]
