@@ -15,13 +15,13 @@ FC_LAYERS = 1  # number of hidden fully connected layers
 FC_UNITS = (1024, )  # number of units, for each fully connected layers
 # Experience replay
 MEMORY_SIZE = 1000  # number of transitions (s, s') to keep in memory
-REPLAY_NTIMES = 2 # how many times a transition is used for training before being deleted, on average
+REPLAY_NTIMES = 2  # how many times a transition is used for training before being deleted, on average
 # Learning rate
-LEARNING_RATE = 5e-3  # usual learning rate
+LEARNING_RATE = 1e-3  # usual learning rate
 # Exploration: eps is the probability of taking a random action when executing the policy
 E_GREEDY_FLOOR = 0.1  # floor value of eps (cannot be smaller than that)
 E_GREEDY_0 = 1.0  # initial value of eps
-E_GREEDY_DECAY = 20000   # timescale for eps decay, in number of training iterations
+E_GREEDY_DECAY = 50000   # timescale for eps decay, in number of training iterations
 # Evaluation of the RL policy
 EVALUATE_PERFORMANCE_EVERY = 5000  # how often is the RL policy evaluated, in number of training iterations
 # Evaluation of the RL policy
