@@ -14,7 +14,7 @@ POOL_SIZES = (2, 2, 2)  # size of the max pooling (done after convolution), for 
 FC_LAYERS = 1  # number of hidden fully connected layers
 FC_UNITS = (1024, )  # number of units, for each fully connected layers
 # Experience replay
-MEMORY_SIZE = 1000  # number of transitions (s, s') to keep in memory
+MEMORY_SIZE = 2000  # number of transitions (s, s') to keep in memory
 REPLAY_NTIMES = 2  # how many times a transition is used for training before being deleted, on average
 # Learning rate
 LEARNING_RATE = 1e-3  # usual learning rate
