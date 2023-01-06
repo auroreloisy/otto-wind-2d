@@ -39,7 +39,6 @@ def reload_model(model_dir, inputshape):
     model = ValueModel(**config)
     model.build_graph(input_shape_nobatch=inputshape)
     model.load_weights(weights_path)
-    print("reloaded model:", config)
     return model
 
 
