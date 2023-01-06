@@ -29,7 +29,7 @@ def reload_model(model_dir, inputshape):
         config["discount"] = 1.0
     if "shaping" not in config:
         config["shaping"] = "0"
-    if "conv_layer" not in config:
+    if "conv_layers" not in config:
         config["conv_layers"] = 0
         config["conv_coord"] = None
         config["conv_filters"] = 0
